@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <title>Test Onto</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+
+    <!-- Polyfills for older browsers -->
+    <script src="https://unpkg.com/core-js/client/shim.min.js"></script>
+    <script src="https://unpkg.com/zone.js@0.7.4?main=browser"></script>
+    <script src="https://unpkg.com/reflect-metadata@0.1.8"></script>
+    <script src="https://unpkg.com/systemjs@0.19.39/dist/system.src.js"></script>
+
+    <script src="https://cdn.rawgit.com/angular/angular.io/b3c65a9/public/docs/_examples/_boilerplate/systemjs.config.web.js"></script>
+    <script type="text/javascript" src="scripts/inheritance.js"></script>
+    <script type="text/javascript" src="scripts/jquery.tooltip.js"></script>
+    <script type="text/javascript" src="scripts/jOWL.js"></script>
+    <script type="text/javascript" src="scripts/jOWL_UI.js"></script>
+    <script type="text/javascript" src="scripts/jOWLBrowser.js"></script>
+    <script type="text/javascript" src="scripts/jowl.element.js"></script>
+    <script type="text/javascript" src="scripts/jowl.document.js"></script>
+    <script type="text/javascript" src="scripts/jowl.datatype.js"></script>
+    <script type="text/javascript" src="scripts/jowl.thing.js"></script>
+    <script type="text/javascript" src="scripts/jowl.ontology.js"></script>
+    <script type="text/javascript" src="scripts/jowl.individual.js"></script>
+    <script type="text/javascript" src="scripts/jowl.property.js"></script>
+    <script type="text/javascript" src="scripts/jowl.class.js"></script>
+    <script type="text/javascript" src="scripts/jowl.intersection.js"></script>
+    <script type="text/javascript" src="scripts/jowl.restriction.js"></script>
+    <script type="text/javascript">
+        //System.import('app').catch(function(err){ console.error(err); });
+        //
+        var doc = jOWL.create.document("http://test.com");
+        console.log(doc);
+        var xx = jOWL.parse(doc);
+        console.log(xx, jOWL.toString());
+        console.log(new jOWL.Type.Ontology().description());
+    </script>
+</head>
+
+<body>
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-lg-12">
+                <app>
+                    <div class="panel panel-default">
+                        <div class="panel-body">
+                        </div>
+                    </div>
+                </app>
+            </div>
+        </div>
+    </div>
+
+
+</body>
+
+</html>

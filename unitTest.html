@@ -1,0 +1,93 @@
+
+
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width">
+  <title>QUnit Example</title>
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+  <link rel="stylesheet" href="https://code.jquery.com/qunit/qunit-2.1.1.css">
+  <script src="https://code.jquery.com/qunit/qunit-2.1.1.js"></script>
+  <script type="text/javascript" src="scripts/inheritance.js"></script>
+  <script type="text/javascript" src="scripts/jquery.tooltip.js"></script>
+  <script type="text/javascript" src="scripts/jOWL.js"></script>
+  <script type="text/javascript" src="scripts/jOWL_UI.js"></script>
+  <script type="text/javascript" src="scripts/jOWLBrowser.js"></script>
+  <script type="text/javascript" src="scripts/jowl.thing.js"></script>
+  <script type="text/javascript" src="scripts/jowl.element.js"></script>
+  <script type="text/javascript" src="scripts/jowl.document.js"></script>
+  <script type="text/javascript" src="scripts/jowl.datatype.js"></script>
+  <script type="text/javascript" src="scripts/jowl.ontology.js"></script>
+  <script type="text/javascript" src="scripts/jowl.individual.js"></script>
+  <script type="text/javascript" src="scripts/jowl.property.js"></script>
+  <script type="text/javascript" src="scripts/jowl.class.js"></script>
+  <script type="text/javascript" src="scripts/jowl.intersection.js"></script>
+  <script type="text/javascript" src="scripts/jowl.restriction.js"></script>
+  <script type="text/javascript">
+    $(document).ready(function(){
+      jOWL.load("data/wine.owl", function(document){
+
+        function assertResources(assert, childCollection){
+          var names = Array.prototype.slice.call(arguments, 2);
+          var actualNames = childCollection.map(function(){
+            return this.name;
+          });
+          assert.deepEqual(actualNames, names);
+        }
+
+        QUnit.test("Ontology Description", function(assert){
+          var onto = document.getOntology();
+          assert.equal(onto.description()[0], "An example OWL ontology");
+        });
+
+        QUnit.test("Wine Test", function(assert){
+          var wine = document.getResource("Wine");
+          assert.notOk(wine.isExternal, "Wine is internal");
+          console.log(wine.terms());
+          assert.equal(wine.label(), 'wine');
+          assert.equal(wine.label('fr'), 'vin');
+
+          console.log('children', wine.children());
+          assertResources(assert, wine.parents(), "PotableLiquid");
+        });
+
+        QUnit.test("Individual WhitehallLaneCabernetFranc", function(assert){
+          var ind = document.getResource("WhitehallLaneCabernetFranc");
+          var clazz = ind.owlClass();
+          assert.equal(clazz.URI, "CabernetFranc");
+        });
+
+        QUnit.test("Burgundy Test", function(assert){
+          var resource = document.getResource("Burgundy");
+          assert.notOk(resource.isExternal, "Burgundy is internal");
+          console.log('children Burgundy', resource.children());
+          assertResources(assert, resource.children(), "WhiteBurgundy", "RedBurgundy");
+        });
+
+        //white wines which are either dry or offdry
+        QUnit.test("WhiteNonSweetWine Test", function(assert){
+          var resource = document.getResource("WhiteNonSweetWine");
+          assert.notOk(resource.isExternal, "WhiteNonSweetWine is internal");
+          console.log('children WhiteNonSweetWine', resource.children());
+          //DryRiesling...
+          //assertChildren(assert, resource.children(), "WhiteBurgundy", "RedBurgundy");
+        });
+
+        QUnit.test("WineGrape Test", function(assert){
+          var resource = document.getResource("WineGrape");
+          assert.notOk(resource.isExternal, "WineGrape is internal");
+          //has an external parent!
+        });
+
+      }, {locale : 'en'});
+
+    });
+  </script>
+
+</head>
+<body>
+  <div id="qunit"></div>
+  <div id="qunit-fixture"></div>
+</body>
+</html>
