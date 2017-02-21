@@ -1,6 +1,6 @@
 jOWL.Type.Individual = Class.extend(jOWL.Type.Thing, {
-  initialize : function(jnode){
-    this.parent(jnode);
+  initialize : function(element){
+    this.parent(element);
     if(this.type == jOWL.NS.owl("Thing")){
       var t = this.element.selectNodes(jOWL.NS.rdf('type'));
   		if(!t.length){ throw "unable to find a Class for the Individual "+
@@ -29,10 +29,14 @@ jOWL.Type.Individual = Class.extend(jOWL.Type.Thing, {
 
 		var results = new jOWL.Array();
 
-		this.jnode.children().filter(function(){
-      return (this.prefix != jOWL.NS.rdfs.prefix && this.prefix != jOWL.NS.rdf.prefix && this.prefix != jOWL.NS.owl.prefix);})
-			.each(function(){
-			var restriction = new jOWL.Type.Restriction($(this));
+		this.element.children().filter(function(item){
+      if(item.hasNamespace(jOWL.NS.rdfs.URI)) return false;
+      if(item.hasNamespace(jOWL.NS.owl.URI)) return false;
+      if(item.hasNamespace(jOWL.NS.rdf.URI)) return false;
+      return true;
+    })
+			.forEach(function(item){
+			var restriction = new jOWL.Type.Restriction(item);
 			var propertyMatch = property ? false : true;
 			var targetMatch = target ? false : true;
 
@@ -50,7 +54,7 @@ jOWL.Type.Individual = Class.extend(jOWL.Type.Thing, {
 				}
 			}
 			else {
-				if(restriction.property.isObjectProperty){
+				if(restriction.property instanceof jOWL.Type.ObjectProperty){
 					targetMatch = jOWL.priv.testObjectTarget(target, restriction.target);
 					if(!targetMatch && options.transitive && restriction.property.isTransitive){
 						var rTransitives = restriction.getTarget().sourceof(restriction.property, target, options);
@@ -72,7 +76,7 @@ jOWL.Type.Individual = Class.extend(jOWL.Type.Thing, {
 				var clRestr = this;
 				if(options.valuesOnly && clRestr.target === null){return;}
 				var clTarget = this.getTarget();
-				if(clTarget.isClass && options.ignoreClasses){ return;}
+				if(clTarget instanceof jOWL.Type.Class && options.ignoreClasses){ return;}
 
 				var containsProperty = false;
 				for(var i = 0;i<results.length;i++){

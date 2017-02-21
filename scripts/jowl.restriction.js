@@ -1,9 +1,11 @@
 jOWL.Type.Restriction = Class.extend({
   initialize : function(element){
+    if(  $(element.node).data('binding')) throw new Error("already exists");
     var jprop, op, restrtype;
     this.target = null;
     this.cachedTarget = null;
     this.element = element;
+    $(this.element.node).data("binding", this);
     this.type = this.element.nodeName();
     var self = this;
     this.propertyURI = null;
@@ -33,8 +35,13 @@ jOWL.Type.Restriction = Class.extend({
           self.target = item.range;}
         else if(self.isValueRestriction){
           var t = op.rdfResource();
-          if(t == "anonymousOntologyObject"){//nested groupings, anonymous classes
-            self.cachedTarget = new jOWL.Type.Class(op.selectSingleNode(jOWL.NS.owl("Class")));
+          if(t == "anonymousOntologyObject"){
+            //nested groupings, anonymous classes
+            var classNode = op.selectSingleNode(jOWL.NS.owl("Class"));
+            if(classNode){
+              self.cachedTarget = self.element.document.getResource(classNode);
+            }
+
 
           }
           self.target = t;
@@ -79,9 +86,10 @@ jOWL.Type.Restriction = Class.extend({
 		return false;
 	},
 	getTarget : function(){
-		if(!this.target){ return jOWL('Thing');}
+		if(!this.target){ return jOWL.Thing;}
 		if(this.cachedTarget){ return this.cachedTarget;}
-		this.cachedTarget = (this.property.isObjectProperty) ? jOWL(this.target) : new jOWL.Literal(this.target);
+		this.cachedTarget = (this.property instanceof jOWL.Type.ObjectProperty) ?
+      this.element.document.getResource(this.target) : new jOWL.Literal(this.target);
 		return this.cachedTarget;
 	},
 	equals : function(restr){

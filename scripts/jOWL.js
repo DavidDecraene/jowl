@@ -10,7 +10,7 @@
 *	http://www.jslint.com/
 */
 
-jOWL = window.jOWL = function( resource, options ){ return jOWL.getResource( resource, options );  };
+jOWL = window.jOWL = {};
 jOWL.version = "1.0";
 
 /** for debugging compatibility */
@@ -304,100 +304,7 @@ jOWL.options = {reason: true, locale:false, defaultlocale: 'en',
 	onParseError : function(msg){alert("jOWL parseError: "+msg);}, cacheProperties : true, niceClassLabels : true};
 jOWL.document = null;
 jOWL.namespace = null;
-jOWL.indices = { //internal indices
-	P : null, //jOWL array
-	data : {},
-	IDs : null,
-	I : null, //Intersection
-	T : null, //Thing
-	D : null, //dictionary
-	reset : function(){var i = jOWL.indices; i.data = {};
-	i.P = null; i.T = null; i.IDs = null; i.I = null;i.D = null;}
-};
 
-jOWL.index = function(type, wipe){
-		var i = jOWL.indices;
-		switch (type)
-		{
-		/**jOWL indexes all elements with rdf:ID, and first order ontology elements specified with rdf:about
-		@return Associative array with key = URI and value = jOWL object.
-		*/
-		case "ID":
-			if(i.IDs === null || wipe){
-				if(wipe){ i.reset();}
-				i.IDs = {};
-				i.T = {};
-				var start = new Date();
-
-				var rID = jOWL.Xpath("//*[@"+jOWL.NS.rdf("ID")+"]").each(function(){
-					var jowl = jOWL.getResource($(this));
-					if(jowl){
-						i.IDs[jowl.URI] = jowl;
-						if(jowl instanceof jOWL.Type.Individual){
-							if(!i.T[jowl.Class]){ i.T[jowl.Class] = new jOWL.Array();}
-							i.T[jowl.Class].push(jowl);
-						}
-					}
-				});
-
-				var rAbout = jOWL.Xpath("/"+jOWL.NS.rdf("RDF")+"/*[@"+jOWL.NS.rdf("about")+"]").each(function(){
-					var jnode = $(this);
-					var jowl = jOWL.getResource($(this));
-					if(!jowl){ return;}
-						if(jowl instanceof jOWL.Type.Class || jowl instanceof jOWL.Type.Property || jowl instanceof jOWL.Type.Individual){
-							if(i.IDs[jowl.URI]){ jnode.children().appendTo(i.IDs[jowl.URI].jnode); return;}
-							i.IDs[jowl.URI] = jowl;
-							if(jowl instanceof jOWL.Type.Individual){
-								if(!i.T[jowl.Class]){ i.T[jowl.Class] = new jOWL.Array();}
-								i.T[jowl.Class].push(jowl);
-							}
-							return;
-						}
-				});
-				console.log("Loaded in "+(new Date().getTime() - start.getTime())+"ms");
-				}
-			return i.IDs;
-		/** Generated together with ID index.
-		* @return Associative Array, key = class, value = jOWL Array of individuals.
-		*/
-		case "Thing":
-			return i.T;
-		case "intersection":
-			return i.I;
-		case "property":
-			if(i.P === null || wipe)
-			{
-			jOWL.options.cacheProperties = false;
-			i.P = new jOWL.Array();
-			for(var x in i.IDs){
-				var jowl = i.IDs[x];
-				if(jowl.isProperty){ i.P.push(jowl);}
-			}
-			jOWL.options.cacheProperties = true;
-			}
-			return i.P;
-		case "dictionary":
-			/**Dictionary: Array of Arrays, where secondary array is of form: [0] = term, [1] = rdfID, [2] = locale */
-			if(i.D === null || wipe)
-			{
-				i.D = [];
-				for(x in i.IDs){
-					var entry = i.IDs[x];
-					i.D = i.D.concat(entry.terms());
-				}
-			}
-			return i.D;
-		}
-};
-
-/** Internal Function, storing data in associative array (JSON),
-jquery data function cannot be used as expando data does not work in IE for ActiveX XMLhttprequest*/
-jOWL.data = function(rdfID, dtype, data){
-	var d = jOWL.indices.data;
-	if(!d[rdfID]){ d[rdfID] = {};}
-	if(!data){ return d[rdfID][dtype];}
-	d[rdfID][dtype] = data;
-};
 
 /**
 * Initialize jOWL with an OWL-RDFS document.
@@ -424,7 +331,10 @@ jOWL.load = function(path, callback, options){
 jOWL.parse = function(doc, options){
 	if(typeof doc == 'string'){ doc = jOWL.fromString(doc);}
 	jOWL.document = doc;
-	if(doc.documentElement.nodeName == 'parsererror'){jOWL.options.onParseError(doc.documentElement.firstChild.nodeValue); return false;}
+	if(doc.documentElement.nodeName == 'parsererror'){
+		jOWL.options.onParseError(doc.documentElement.firstChild.nodeValue);
+		return false;
+	}
 
 	var document = new jOWL.Document(doc,  $.extend(jOWL.options, options));
 
@@ -472,12 +382,16 @@ jOWL.isExternal = function(resource){
 };
 
 /**
-if a URI belongs to the loaded namespace, then strips the prefix url of, else preserves URI
-also able to parse and reference html (or jquery) elements for their URI.
+if a URI belongs to the loaded namespace, then strips the prefix url of,
+else preserves URI
+also able to parse and reference xml (or Element) elements for their URI.
 */
 jOWL.resolveURI = function(URI, array){
 	if(typeof URI != "string"){
-		var node = URI instanceof $ ? URI.get(0) : URI;
+		if(URI instanceof $){
+			throw new Error("No jquery object allowed");
+		}
+		var node = URI instanceof jOWL.Element ? URI.node : URI;
 		URI = node.localName || node.baseName;
 		if(node.namespaceURI){ URI = node.namespaceURI + URI;}
 		return jOWL.resolveURI(URI, array);
@@ -495,50 +409,6 @@ jOWL.resolveURI = function(URI, array){
 	if(array){ return [ns, rs];}
 	if(ns == jOWL.namespace){ return rs;}
 	return URI;
-};
-
-/**
-Main method to get an Ontology Object, access via jOWL(>String>, options);
-resource: rdfID/rdfResource<String> or jQuery node.
-*/
-jOWL.getResource = function(resource, options){
-	if(!jOWL.document){ throw "You must successfully load an ontology before you can find anything";}
-	if(!resource){ throw "No resource specified";}
-	var node;
-	var opts = $.extend({}, options);
-	if(typeof resource == 'string'){
-		resource = jOWL.resolveURI(resource);
-		if(resource == 'Thing' || resource == jOWL.NS.owl()+'Thing'){
-			 return jOWL.Thing;}
-		if(opts.type == 'property' && jOWL.options.cacheProperties){
-			var c = jOWL.index('property').get(resource);
-			if(c){ return c;}
-			if(jOWL.isExternal(resource)){ console.log("undeclared resource: "+resource); return new jOWL.Type.Property(resource);}
-			}
-		var match = jOWL.index("ID")[resource];
-		if(!match){ //try case insensitive
-			for(var caseIns in jOWL.index("ID")){
-				if(caseIns.toLowerCase() == resource.replace(/ /g, "").toLowerCase()){ match = jOWL.index("ID")[caseIns]; break;}
-			}
-		}
-		if(!match){
-			if(jOWL.isExternal(resource)){
-				console.log("undeclared resource: "+resource);
-				return new jOWL.Type.Thing(resource);
-			}
-			console.log(resource+" not found");
-			return null;
-		}
-		return match;
-	}
-	//console.log(resource);
-	var xmlNode = resource;
-	if(resource instanceof $) xmlNode = resource.get(0);
-	else if(resource instanceof jOWL.Element) xmlNode = resource.node;
-	else resource = $(resource);
-	var jj = jOWL.type(xmlNode);
-	if(!jj){ return null;}
-	return new (jj)(resource);
 };
 
 /**
@@ -627,51 +497,6 @@ jOWL.create.document = function(href){
 };
 
 /**
-Match part or whole of the rdfResource<String>
-Used for term searches, intend to (partially) replace it by a sparql-dl query later on
-options:
-    filter: filter on a specific type, possible values: Class, Thing, ObjectProperty, DatatypeProperty
-    exclude: exclude specific types, not fully implemented
-*/
-jOWL.query = function(match, options){
-	options = $.extend({exclude : false}, options);
-	if(options.filter == 'Class'){ options.filter = jOWL.NS.owl("Class");}
-	var that = this;
-	//filter : [], exclude : false
-	var items = new jOWL.Array();
-	var jsonobj = {};
-	var test = jOWL.index("dictionary");
-
-	function store(item){
-			var include = false, i = 0;
-			if(options.filter){
-				if(typeof options.filter == 'string'){ include = (options.filter == item[3]);}
-				else { for(i = 0;i<options.filter.length;i++){ if(options.filter[i] == item[3]){ include = true;} } }
-				}
-			else if(options.exclude){
-				include = true;
-				if(typeof options.exclude == 'string'){ include = (options.exclude !== item[3]);}
-				else { for(i = 0;i<options.exclude.length;i++){ if(options.exclude[i] == item[3]){ include = false;} } }
-			}
-			else { include = true;}
-			if(!include){ return;}
-			if(!jsonobj[item[1]]){ jsonobj[item[1]] = [];}
-			jsonobj[item[1]].push( { term : item[0], locale: item[2], type: item[3] });
-	}
-
-	for(var y = 0;y<test.length;y++){
-		var item = test[y];
-		var bool = options.exclude;
-		var r = item[0].searchMatch(match);
-		if(r > -1){
-			if(options.locale){ if(options.locale == item[2]){ store(item);} }
-			else { store(item);}
-		}
-	}
-	return jsonobj;
-};
-
-/**
 allows asynchronous looping over arrays (prevent bowser freezing).
 arr the array to loop asynchonrously over.
 options.modify(item) things to do with each item of the array
@@ -738,7 +563,7 @@ jOWL.permalink = function(entry){
 		if(!entry.URI){ return false;}
 		var href = window.location.href.split("?", 2);
 		if(window.location.search){ href = href[0];}
-		if(entry.isClass){ return href+'?owlClass='+escape(entry.URI);}
+		if(entry instanceof jOWL.Type.Class){ return href+'?owlClass='+escape(entry.URI);}
 	}
 	return false;
 };

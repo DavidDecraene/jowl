@@ -33,7 +33,7 @@
           var actualNames = childCollection.map(function(){
             return this.name;
           });
-          assert.deepEqual(actualNames, names);
+          assert.deepEqual(actualNames.sort(), names.sort(), 'Resources equivalence');
         }
 
         QUnit.test("Ontology Description", function(assert){
@@ -61,8 +61,31 @@
         QUnit.test("Burgundy Test", function(assert){
           var resource = document.getResource("Burgundy");
           assert.notOk(resource.isExternal, "Burgundy is internal");
-          console.log('children Burgundy', resource.children());
           assertResources(assert, resource.children(), "WhiteBurgundy", "RedBurgundy");
+          assertResources(assert, resource.parents(), "TableWine");
+          assert.ok(true, "Table wine is defined as a wine which is dry... which is actually wrong... Burgundy is dry....");
+          //Table wine is defined as a wine which is dry... which is actually wrong...
+          //Burgundy is dry....
+          assertResources(assert, resource.sourceof(), "hasSugar#Dry",
+          "locatedIn#FrenchRegion",
+          "locatedIn#BourgogneRegion",
+          "hasMaker#undefined",
+          "madeFromGrape#undefined",
+          "hasFlavor#undefined",
+          "hasBody#undefined",
+          "hasColor#undefined");
+          //console.log("Burgundy source", resource.sourceof());
+        });
+
+        QUnit.test("WhiteBurgundy Test", function(assert){
+          var resource = document.getResource("WhiteBurgundy");
+          assert.notOk(resource.isExternal, "WhiteBurgundy is internal");
+          assertResources(assert, resource.children(), "Meursault");
+          assertResources(assert, resource.parents(), "Burgundy", "WhiteWine");
+          assertResources(assert, resource.ancestors(), "Burgundy", "TableWine", "Wine", "PotableLiquid", "WhiteWine");
+        //  assertResources(assert, resource.children(), "WhiteBurgundy", "RedBurgundy");
+          //assertResources(assert, resource.parents(), "Wine");
+          //console.log("source", resource.sourceof());
         });
 
         //white wines which are either dry or offdry

@@ -1,8 +1,10 @@
 jOWL.Type.Intersection = Class.extend({
   initialize : function(element, owner){
     if(owner === undefined) throw new Error("No owner set");
+    if(  $(element.node).data('binding')) throw "already exists";
     var self = this;
   	this.element = element;
+    $(this.element.node).data("binding", this);
     this.owner = owner;
   	this._arr = [];
   	this.URI = owner.URI;

@@ -1,12 +1,12 @@
 
 jOWL.Type.Class = Class.extend(jOWL.Type.Thing, {
   initialize : function(element){
+    if(  $(element.node).data('binding')) throw new Error("already exists");
     this.parseNew(element);
     this._parentRefs = [];
     this.intersections = [];
     this.restrictions = [];
     this.append(element, true);
-    if(this.URI == 'WhiteBurgundy') console.log(this);
   }, append : function(element, init){
     var self = this;
     if(!init)  $(this.element.node).append($(element.node).children());
@@ -37,7 +37,7 @@ jOWL.Type.Class = Class.extend(jOWL.Type.Thing, {
 	/** @return A jOWL.Array of individuals for this class & its subclasses */
 	individuals : function(){
 		var arr = new jOWL.Array();
-		var q = new jOWL.SPARQL_DL("Type(?x, "+this.name+")")
+		var q = new jOWL.SPARQL_DL(this.element.document, "Type(?x, "+this.name+")")
       .execute({async: false, onComplete: function(r){ arr = r.jOWLArray("?x");}  });
 		return arr;
 	},
@@ -45,25 +45,16 @@ jOWL.Type.Class = Class.extend(jOWL.Type.Thing, {
 	oneOf : function(){
 		var arr = new jOWL.Array();
     this.element.selectNodes(jOWL.NS.owl("oneOf/child::node()")).forEach(function(oneof){
-      console.log(oneof);
-
+      arr.push(oneof.rdfAbout());
     });
-    /*
-		var oneOf = this.jnode.children().filter(function(){
-      return this.tagName == jOWL.NS.owl("oneOf");});
-		  oneOf.children().each(function(){
-			     arr.push(jOWL($(this).rdfAbout()));
-		});*/
 		return arr;
 	},
 	/** @return A jOWL.Array of direct children */
 	children : function(){
-    //this may fail horribly
 		var oChildren = this.element.data("children");
 		if(oChildren){ return oChildren;}
 		oChildren = new jOWL.Array();
-    //????
-		if(this.oneOf().length){return oChildren;}
+		if(this.oneOf().length){return oChildren;}//???
 		var URI = this.URI;
     var idIndex = this.element.document.getIDIndex();
     var self = this;
@@ -84,7 +75,9 @@ jOWL.Type.Class = Class.extend(jOWL.Type.Thing, {
           clRestr = clRestr.concat(iSect.restrictions);
         });
         intersections.each(function(){//fully defined Subclasses
-					if(this.match(key, node._parentRefs, clRestr)){oChildren.push(node);}
+					if(this.match(key, node._parentRefs, clRestr)){
+            oChildren.push(node);
+          }
 				});
       }
 
@@ -95,13 +88,22 @@ jOWL.Type.Class = Class.extend(jOWL.Type.Thing, {
       if(this.domain == self.name){
         var xpath = '//'+jOWL.NS.owl('onProperty')+'[@'+jOWL.NS.rdf('resource')+'="#'+this.name+'"]/parent::'+jOWL.NS.owl('Restriction')+'/..';
         this.element.document.selectNodes(xpath).forEach(function(item){
-          if(this.nodeName == jOWL.NS.owl('intersectionOf') || this.nodeName == jOWL.NS.rdfs('subClassOf')){
-            var parent = this.selectSingleNode('parent::'+jOWL.NS.owl('Class'));
-            var cl = this.element.document.getResource(parent);
-            if(cl && !oChildren.contains(cl) && cl.name != self.name && cl.name !== undefined){ oChildren.push(cl);}
+          if(item.nodeName() == jOWL.NS.owl('intersectionOf') ||
+          item.nodeName() == jOWL.NS.rdfs('subClassOf')){
+            var parent = item.selectSingleNode('parent::'+jOWL.NS.owl('Class'));
+            var cl = item.document.getResource(parent);
+            if(cl && !oChildren.contains(cl) && cl.name != self.name &&
+            cl.name !== undefined){
+              oChildren.push(cl);
+            }
           }
         });
       }
+    });
+    //filter out redundancies
+    oChildren.filter(function(){
+      this.hierarchy(false);
+      return this.parents().contains(URI);
     });
 		this.element.data("children", oChildren);
 		return oChildren;
@@ -138,8 +140,8 @@ jOWL.Type.Class = Class.extend(jOWL.Type.Thing, {
 		};
 
 		if(jOWL.options.reason){
-			for(var resource in jOWL.index('intersection')){
-				jOWL.index('intersection')[resource].each(iSectLoop);
+			for(var resource in this.element.document.index('intersection')){
+				this.element.document.index('intersection')[resource].each(iSectLoop);
 			}
 		}
     temp = temp.filter(function(a){
@@ -187,8 +189,13 @@ Constructs the entire (parent) hierarchy for a class
 		}
 
 		function traverse(concept){
+      if(concept instanceof jOWL.Type.External || concept == jOWL.Thing){
+        endNodes.pushUnique(concept);
+        return;
+      }
 			var parents = concept.parents();
-			if(parents.length == 1 && parents.contains(jOWL.NS.owl()+'Thing')){ endNodes.pushUnique(concept); return;}
+			if(parents.length == 1 && parents.contains(jOWL.NS.owl()+'Thing')){
+        endNodes.pushUnique(concept); return;}
 			else
 			{
 				var asso = jOWL.options.reason ? URIARR(parents) : {};
@@ -215,7 +222,7 @@ Constructs the entire (parent) hierarchy for a class
 	*/
 	descendants : function(level){
 		level = (typeof level == 'number') ? level : 5;
-		var oDescendants = jOWL.data(this.name, "descendants");
+		var oDescendants = this.element.data("descendants");
 		if(oDescendants && oDescendants.level >= level){ return oDescendants;}
 		oDescendants = new jOWL.Array();
 		oDescendants.level = level;
@@ -230,7 +237,7 @@ Constructs the entire (parent) hierarchy for a class
 		}
 
 		descend(this, 1);
-		jOWL.data(this.name, "descendants", oDescendants);
+		this.element.data("descendants", oDescendants);
 		return oDescendants;
 	},
 	/** @return jOWL.Array of Restrictions, target is an individual, not a class or undefined (unless includeAll is specified) - deprecated */
@@ -252,15 +259,15 @@ Constructs the entire (parent) hierarchy for a class
 			valuesOnly : true //do not return valueless criteria
 		}, options);
 		var self = this;
-		var crit = jOWL.data(this.name, "sourceof");
-		var jnode = this.jnode;
+		var crit = this.element.data("sourceof");
 
 		if(!crit){
 			crit = new jOWL.Array();
-			var arr = jOWL.Xpath(jOWL.NS.rdfs("subClassOf")+"/"+jOWL.NS.owl("Restriction"), jnode)
-				.add(jOWL.Xpath(jOWL.NS.owl("intersectionOf")+"/"+jOWL.NS.owl("Restriction"), jnode));
-			arr.each(function(index, entry){
-			var cr = new jOWL.Type.Restriction($(entry));
+      var restr = [].concat(this.restrictions);
+      this.intersections.forEach(function(iSect){
+        restr = restr.concat(iSect.restrictions);
+      });
+			restr.forEach(function(cr){
 				var dupe = false;
 				crit.each(function(item, i){
 						if(this.property.name == cr.property.name){ dupe = item;}
@@ -268,7 +275,7 @@ Constructs the entire (parent) hierarchy for a class
 				if(dupe){ if(!dupe.merge(cr)){ crit.push(cr);} }
 				else { crit.push(cr);}
 			});
-			jOWL.data(self.name, "sourceof", crit);
+			this.element.data("sourceof", crit);
 		}
 		var results = new jOWL.Array();
 
@@ -296,7 +303,7 @@ Constructs the entire (parent) hierarchy for a class
 
 			if(!targetMatch){
 				var targ = this.getTarget();
-				if(targ.isClass && options.ignoreClasses){ return;}
+				if(targ instanceof jOWL.Type.Class && options.ignoreClasses){ return;}
 				targetMatch = jOWL.priv.testObjectTarget(target, this.target);
 				if(!targetMatch && options.transitive && propertyMatch && this.property.isTransitive){
 					if(targ instanceof jOWL.Type.Individual){

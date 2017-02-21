@@ -5,6 +5,8 @@ jOWL.Element = Class.extend({
     //console.log(node instanceof Element);
 		this.document = document;
 		this._data = {};
+	}, hasNamespace : function(ns){
+		return this.node.namespaceURI == ns;
 	}, text : function(){
     return  $(this.node).text();
   }, attr : function(namespace, name, value){

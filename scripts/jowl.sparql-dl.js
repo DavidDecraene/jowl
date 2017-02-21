@@ -80,7 +80,10 @@ jOWL.SPARQL_DL_Result.prototype = {
 };
 
 /** Creates a new query for the SPARQL-DL functionality */
-jOWL.SPARQL_DL_Query = function(syntax, parameters){
+jOWL.SPARQL_DL_Query = function(document, syntax, parameters){
+		if(!(document instanceof jOWL.Document)) throw new Error("No Document specified");
+		this.document = document;
+		this.entries = [];
 		this.parse(syntax);
 		this.fill(parameters);
 		this.entries = this.entries.sort(this.sort);
@@ -113,8 +116,10 @@ jOWL.SPARQL_DL_Query.prototype = {
 						var m = p.match(/^["'](.+)["']$/);
 						if(m && m.length == 2){ this.entries[i][1][j] = {test: m[1]}; break;}
 						}
-					this.entries[i][1][j] = jOWL(p);
-					if(this.entries[i][1][j] === null){this.entries.error = "a parameter in the query was not found"; return;}
+					this.entries[i][1][j] = this.document.getResource(p);
+					if(this.entries[i][1][j] === null){
+						this.entries.error = "a parameter in the query was not found";
+						return;}
 					}
 				}
 			}
@@ -211,22 +216,25 @@ options.async: default true, query asynchronously
 parameters: prefill some sparql-dl parameters with jOWL objects
 execute: start query, results are passed through options.onComplete
 */
-jOWL.SPARQL_DL = function(syntax, parameters, options){
-	if(!(this instanceof arguments.callee)){ return new jOWL.SPARQL_DL(syntax, parameters, options);}
+jOWL.SPARQL_DL = function(document, syntax, parameters, options){
+	if(!(document instanceof jOWL.Document)) throw new Error("No Document specified");
+	if(!(this instanceof arguments.callee)){ return new jOWL.SPARQL_DL(document, syntax, parameters, options);}
 	var self = this;
+	this.document = document;
 	this.parameters = $.extend({}, parameters);
-	this.query = new jOWL.SPARQL_DL_Query(syntax, this.parameters).entries;
+	this.query = new jOWL.SPARQL_DL_Query(document, syntax, this.parameters).entries;
 	this.result = new jOWL.SPARQL_DL_Result();
 	this.options = $.extend({onComplete: function(results){}}, options);
 };
 
 jOWL.SPARQL_DL.prototype = {
-	error: function(msg){ this.result.error = msg; return this.options.onComplete(this.result);},
+	error: function(msg){ this.result.error = msg;
+		return this.options.onComplete(this.result);},
 	/**
 	if(options.async == false) then this method returns the result of options.onComplete,
 	no matter what, result is always passed in options.onComplete
 	*/
-	execute : function(options){
+	execute : function( options){
 		var self = this;
 		this.options = $.extend(this.options, options);
 		if(this.query.error){ return this.error(this.query.error);}
@@ -243,7 +251,7 @@ jOWL.SPARQL_DL.prototype = {
 
 		function loop(i){
 			if(i < self.query.length){
-				self.process(self.query[i], resultobj, loopoptions );
+				self.process( self.query[i], resultobj, loopoptions );
 				}
 			else {
 				for(var j =0;j<resultobj.results.length;j++){ //Convert Literals into strings
@@ -258,9 +266,12 @@ jOWL.SPARQL_DL.prototype = {
 		loop(i);
 	},
 	/** results are passed in the options.onComplete function */
-	process: function(entry, resultobj, options){
+	process: function( entry, resultobj, options){
+		var document = this.document;
+		if(!document) throw new Error("No Document specified");
 		var self = this;
-		options = $.extend({chewsize: 10, async : true, onComplete : function(results){}}, options);
+		options = $.extend({chewsize: 10, async : true,
+			onComplete : function(results){}}, options);
 		var q = entry[0];
 		var sizes = {
 			"Type": [jOWL.NS.owl('Thing'), jOWL.NS.owl('Class')],
@@ -283,12 +294,14 @@ jOWL.SPARQL_DL.prototype = {
 				if(typeof m != 'string' && m.type != v){ return self.error("Parameter "+i+" in SPARQL-DL Query for "+q+" must be of the type: "+v);}
 			}
 		}
-		if(q == "DirectType"){ options.childDepth = 0; return self.fn.Type.call(self, entry[1], resultobj, options);}
-		else if(q == "DirectSubClassOf"){ options.childDepth = 1; return self.fn.SubClassOf.call(self, entry[1], resultobj, options);}
-		return self.fn[q].call(self, entry[1], resultobj, options);
+		if(q == "DirectType"){ options.childDepth = 0;
+			return self.fn.Type.call(self, this.document, entry[1], resultobj, options);}
+		else if(q == "DirectSubClassOf"){ options.childDepth = 1;
+			return self.fn.SubClassOf.call(self, this.document, entry[1], resultobj, options);}
+		return self.fn[q].call(self, this.document, entry[1], resultobj, options);
 	},
 	fn : {
-			"SubClassOf" : function(syntax, resultobj, options){
+			"SubClassOf" : function(document, syntax, resultobj, options){
 				var atom = new jOWL.SPARQL_DL.DoubleAtom(syntax, resultobj.head);
 				var results = new SPARQL_DL_Array();
 
@@ -319,7 +332,7 @@ jOWL.SPARQL_DL.prototype = {
 					return this.error('Unsupported SubClassOf query');
 				}
 			},
-			"Type" : function(syntax, resultobj, options){
+			"Type" : function(document, syntax, resultobj, options){
 				var atom = new jOWL.SPARQL_DL.DoubleAtom(syntax, resultobj.head);
 
 			function addIndividual(cl){
@@ -384,9 +397,9 @@ jOWL.SPARQL_DL.prototype = {
 						});
 
 						for(x in classes){
-							var individuals = jOWL.index("Thing")[x];
+							var individuals = document.index("Thing")[x];
 							if(individuals){
-								var cl = jOWL.index('ID')[x];
+								var cl = document.index('ID')[x];
 								if(options.onUpdate){ options.onUpdate(individuals);}
 								individuals.each(function(){
 									addIndividual.call(this, cl);
@@ -399,19 +412,21 @@ jOWL.SPARQL_DL.prototype = {
 				}
 				return this.error('Unsupported Type query');
 			},
-			"Thing" : function(syntax, resultobj, options){
-				jOWL.SPARQL_DL.priv.IDQuery(syntax[0], "isThing", resultobj, options);
+			"Thing" : function(document, syntax, resultobj, options){
+				jOWL.SPARQL_DL.priv.IDQuery(document, syntax[0], jOWL.Type.Individual, resultobj, options);
 			},
-			"Class" : function(syntax, resultobj, options){ console.log('cl');
-				jOWL.SPARQL_DL.priv.IDQuery(syntax[0], "isClass", resultobj, options);
+			"Class" : function(document, syntax, resultobj, options){
+				jOWL.SPARQL_DL.priv.IDQuery(document, syntax[0], jOWL.Type.Class, resultobj, options);
 			},
-			"ObjectProperty" : function(syntax, resultobj, options){
-				jOWL.SPARQL_DL.priv.PropertyQuery(syntax[0], jOWL.index("property").items, "isObjectProperty", resultobj, options);
+			"ObjectProperty" : function(document, syntax, resultobj, options){
+				jOWL.SPARQL_DL.priv.PropertyQuery(document, syntax[0],
+					document.index("property").items, jOWL.Type.ObjectProperty, resultobj, options);
 			},
-			"DatatypeProperty" : function(syntax, resultobj, options){
-				jOWL.SPARQL_DL.priv.PropertyQuery(syntax[0], jOWL.index("property").items, "isDatatypeProperty", resultobj, options);
+			"DatatypeProperty" : function(document, syntax, resultobj, options){
+				jOWL.SPARQL_DL.priv.PropertyQuery(document, syntax[0],
+					document.index("property").items, jOWL.Type.DatatypeProperty, resultobj, options);
 			},
-			"PropertyValue" : function(syntax, resultobj, options){
+			"PropertyValue" : function(document, syntax, resultobj, options){
 				var atom = new jOWL.SPARQL_DL.TripleAtom(syntax, resultobj.head);
 
 				if(atom.source.isURI() && atom.property.isURI() && atom.target.isURI()){//assert
@@ -422,7 +437,7 @@ jOWL.SPARQL_DL.prototype = {
 				}
 
 				if(!atom.source.getURIs()){
-					jOWL.SPARQL_DL.priv.IDQuery(atom.source.value, ["isClass", "isThing"], resultobj, options);
+					jOWL.SPARQL_DL.priv.IDQuery(atom.source.value, [jOWL.Type.Class, jOWL.Type.Individual], resultobj, options);
 					return;
 				}
 				var filterTarget = atom.target.isVar() ? atom.target.value : false;
@@ -493,12 +508,14 @@ jOWL.SPARQL_DL.priv = {
 	hasClassID: function(match, classID){
 		if(Object.prototype.toString.call(classID) === '[object Array]'){
 			for(var i =0;i<classID.length;i++){
-				if(match[classID]){ return true;}
+
+				if(match instanceof classID){ return true;}
 			}
-		} else if(match[classID]){  return true;}
+		} else if(match instanceof classID){  return true;}
 		return false;
 	},
-	IDQuery : function(parameter, classID, resultobj, options){
+	IDQuery : function(document, parameter, classID, resultobj, options){
+		if(!(document instanceof jOWL.Document)) throw new Error("No document passed");
 		var atom = new jOWL.SPARQL_DL.Atom(parameter, resultobj.head);
 		if(atom.isURI()){
 			return jOWL.SPARQL_DL.priv.assert(resultobj, function(){
@@ -506,16 +523,18 @@ jOWL.SPARQL_DL.priv = {
 			}, options.onComplete);
 		}
 		var results = new SPARQL_DL_Array();
-		for(x in jOWL.index("ID")){
-			var match = jOWL.index("ID")[x];
+		for(var x in document.index("ID")){
+			var match = document.index("ID")[x];
 			if(jOWL.SPARQL_DL.priv.hasClassID(match, classID)){ results.push(parameter, match);}
 		}
 		resultobj.filter(parameter, results.get(parameter));
 		resultobj.bind(results.getArray());
 		options.onComplete(resultobj);
 	},
-	PropertyQuery : function(parameter, index, className, resultobj, options){
-		var atom = new jOWL.SPARQL_DL.Atom(parameter, resultobj.head);
+	PropertyQuery : function(document, parameter, index, className, resultobj, options){
+
+			if(!(document instanceof jOWL.Document)) throw new Error("No document passed");
+			var atom = new jOWL.SPARQL_DL.Atom(parameter, resultobj.head);
 		if(atom.isURI()){
 			return jOWL.SPARQL_DL.priv.assert(resultobj, function(){
 				return jOWL.SPARQL_DL.priv.hasClassID(atom.getURIs().get(0), className);

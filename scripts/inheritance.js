@@ -120,6 +120,23 @@ var Class = (function() {
   };
 })();
 
+
+var EventListener = {
+addListener : function(el){
+  if(!el) return;
+  if(!this._listeners) this._listeners = [];
+  this._listeners.push(el);
+}, fireEvent :  function(name){
+  if(!this._listeners) return;
+  var args = Array.prototype.slice.call(arguments, 1);
+  for(var i = this._listeners.length-1;i>=0;i--){
+    var fn = this._listeners[i]["on"+name];
+    if(!fn) continue;
+    fn.apply(this._listeners[i], args);
+  }
+}
+}
+
 // Usage: Object.byString(someObj, 'part3[0].name', defaultValue);
 Object.byString = function(o, s, d) {
 	if(!o) return undefined;

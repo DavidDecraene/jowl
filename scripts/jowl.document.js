@@ -45,7 +45,8 @@ jOWL.Document = Class.extend({
 			if(! isect || !isect.URI){return;}
 			var dupe = this.indices.II.get(isect);
 			if(dupe){
-				console.log("duplicate intersection found between : (Ignoring) "+isect.URI+"  and "+dupe.URI);
+				console.log("duplicate intersection found between : (Ignoring) "+
+				isect.URI+"  and "+dupe.URI);
 			} else {
 				if(!this.indices.I[isect.URI]){
 					this.indices.I[isect.URI] = new jOWL.Array();
@@ -91,7 +92,7 @@ jOWL.Document = Class.extend({
       self._indexElement.call(self, jowl);
     });
     this.selectNodes("/"+jOWL.NS.rdf("RDF")+"/*[@"+jOWL.NS.rdf("about")+"]").forEach(function(node){
-      var jowl = jOWL.getResource(node);
+      var jowl = self.getResource(node);
       //console.log(node, jowl);
       if(!jowl){ return;}
       var resource = jowl.URI;
@@ -157,17 +158,68 @@ jOWL.Document = Class.extend({
   				return new jOWL.Type.External(resource);
   			}
   			console.log(resource+" not found");
-				throw new Error("not found");
   			return null;
   		}
   		return match;
   	}
-  	//console.log(resource);
   	var xmlNode = resource;
   	if(resource instanceof jOWL.Element) xmlNode = resource.node;
+		var existing = $(xmlNode).data('binding');
+		if(existing){
+			return existing;
+		}
     var element = new jOWL.Element(this, xmlNode);
+
   	var jj = jOWL.type(xmlNode);
   	if(!jj){ return null;}
   	return new (jj)(element);
-  }
+  },
+	/**
+	Match part or whole of the rdfResource<String>
+	Used for term searches, intend to (partially) replace it by a sparql-dl query later on
+	options:
+	    filter: filter on a specific type, possible values: Class, Thing, ObjectProperty, DatatypeProperty
+	    exclude: exclude specific types, not fully implemented
+	*/
+	query : function( match, options){
+		options = $.extend({exclude : false}, options);
+		if(options.filter == 'Class'){ options.filter = jOWL.NS.owl("Class");}
+		var that = this;
+		//filter : [], exclude : false
+		var items = new jOWL.Array();
+		var jsonobj = {};
+		var test = this.index("dictionary");
+
+		function store(item){
+				var include = false, i = 0;
+				if(options.filter){
+					if(typeof options.filter == 'string'){
+						include = (options.filter == item[3]);}
+					else { for(i = 0;i<options.filter.length;i++){
+						if(options.filter[i] == item[3]){ include = true;} } }
+					}
+				else if(options.exclude){
+					include = true;
+					if(typeof options.exclude == 'string'){
+						include = (options.exclude !== item[3]);}
+					else { for(i = 0;i<options.exclude.length;i++){
+						if(options.exclude[i] == item[3]){ include = false;} } }
+				}
+				else { include = true;}
+				if(!include){ return;}
+				if(!jsonobj[item[1]]){ jsonobj[item[1]] = [];}
+				jsonobj[item[1]].push( { term : item[0], locale: item[2], type: item[3] });
+		}
+
+		for(var y = 0;y<test.length;y++){
+			var item = test[y];
+			var bool = options.exclude;
+			var r = item[0].searchMatch(match);
+			if(r > -1){
+				if(options.locale){ if(options.locale == item[2]){ store(item);} }
+				else { store(item);}
+			}
+		}
+		return jsonobj;
+	}
 });

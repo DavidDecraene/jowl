@@ -42,7 +42,7 @@ xmlns:rdf = "http://www.w3.org/1999/02/22-rdf-syntax-ns#"
     <rdfs:subClassOf>
       <owl:Restriction>
         <owl:onProperty rdf:resource="#hasMaker"/>
-	<owl:allValuesFrom rdf:resource="#Winery"/>
+		<owl:allValuesFrom rdf:resource="#Winery"/>
       </owl:Restriction>
     </rdfs:subClassOf>
     <rdfs:subClassOf>

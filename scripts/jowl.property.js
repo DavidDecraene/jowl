@@ -2,28 +2,25 @@
 
 /** 'superclass' for Properties */
 jOWL.Type.Property = Class.extend(jOWL.Type.Thing, {
-    initialize : function(jnode){
+    initialize : function(element){
+      if(  $(element.node).data('binding')) throw new Error("already exists");
       this.isProperty = true;
-  	  var r =  this.parseProperty(jnode);
+  	  var r =  this.parseProperty(element);
       if(r) return r; //cached versions... todo refine
-  }, parseProperty : function(jnode){
-  		if(jOWL.options.cacheProperties && jOWL.indices.IDs){
-  			var res = jnode.rdfID() || jnode.rdfAbout();
-  			var c = jOWL.index('property').get(res);
-  			if(c){ return c;}
-  		}
-      this.parseNew(jnode);
-      var a = jnode.selectSingleNode(jOWL.NS.rdfs('domain'));
+  }, parseProperty : function(element){
+      this.parseNew(element);
+      var a = element.selectSingleNode(jOWL.NS.rdfs('domain'));
       if(a) this.domain = a.rdfResource();
-      var b = jnode.selectSingleNode(jOWL.NS.rdfs('range'));
+      var b = element.selectSingleNode(jOWL.NS.rdfs('range'));
       if(b) this.range = b.rdfResource();
 
 	}
 });
 
 jOWL.Type.DatatypeProperty = Class.extend(jOWL.Type.Property, {
-  initialize : function(jnode){
-    var r = this.parseProperty(jnode);
+  initialize : function(element){
+    if(  $(element.node).data('binding')) throw new Error("already exists");
+    var r = this.parseProperty(element);
     if(r) return r;
     this.isDatatypeProperty = true;
     if(this.type == jOWL.NS.owl("AnnotationProperty")){ this.range = jOWL.NS.xsd()+"string";}
@@ -43,8 +40,9 @@ jOWL.Type.DatatypeProperty = Class.extend(jOWL.Type.Property, {
 });
 
 jOWL.Type.ObjectProperty = Class.extend(jOWL.Type.Property, {
-  initialize : function(jnode){
-    var r = this.parseProperty(jnode);
+  initialize : function(element){
+    if(  $(element.node).data('binding')) throw new Error("already exists");
+    var r = this.parseProperty(element);
     if(r) return r;
     this.isObjectProperty = true;
     var self = this;

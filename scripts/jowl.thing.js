@@ -2,6 +2,7 @@
 
 jOWL.Type.Thing = Class.extend({
 	initialize : function(node){
+    if(  $(node.node).data('binding')) throw "already exists";
 		this.parseNew(node);
 	},
 	equals : function(id){
@@ -9,6 +10,7 @@ jOWL.Type.Thing = Class.extend({
 		return URI === this.URI;
 	},
 	parseNew : function(node){
+		if(!(node instanceof jOWL.Element)) throw new Error("no Element");
 		var identifier = node.rdfID() || node.rdfAbout();
 		if(!identifier){
 			identifier = "anonymousOntologyObject";
@@ -24,6 +26,7 @@ jOWL.Type.Thing = Class.extend({
 			this.URI = this.baseURI+this.name;}
 		else { this.baseURI = jOWL.namespace; this.name = identifier; this.URI = this.name;}
 		this.element = node;
+		$(this.element.node).data("binding", this);
 		this.type = node.nodeName();
 	},
 	/** @return A jQuery array of elements matching the annotation (qualified name or annotation Property) */
