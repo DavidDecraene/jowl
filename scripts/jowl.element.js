@@ -110,5 +110,7 @@ jOWL.Element = Class.extend({
 		}
 		this._data[type] = data;
 		return this;
+	}, toXML : function(){
+		return new XMLSerializer().serializeToString(this.node);
 	}
 });

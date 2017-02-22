@@ -6,6 +6,25 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+    <style type="text/css">
+    .ghost-border {
+      position:fixed;
+      top:0;left:0;
+      z-index:100;
+    }
+    .ghost-border.top, .ghost-border.bottom {
+      border-top:1px solid black;height:5px;width:10px;
+    }
+    .ghost-border.right {
+      border-right:1px solid black;height:10px;width:2px;
+    }
+    .ghost-border.left {
+      border-left:1px solid black;height:10px;width:2px;
+    }
+    #dockArea .col {
+      min-height:100px;
+    }
+    </style>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
 
@@ -32,20 +51,260 @@
     <script type="text/javascript" src="scripts/jowl.intersection.js"></script>
     <script type="text/javascript" src="scripts/jowl.restriction.js"></script>
     <script type="text/javascript">
-        //System.import('app').catch(function(err){ console.error(err); });
-        //
-        var doc = jOWL.create.document("http://test.com");
-        console.log(doc);
-        var xx = jOWL.parse(doc);
-        console.log(xx, jOWL.toString());
-        console.log(new jOWL.Type.Ontology().description());
+    var doc = jOWL.create.document("http://test.com");
+    var owlDocument = jOWL.parse(doc);
+    console.log(owlDocument.toXML());
+    console.log(owlDocument.getOntology().description());
+
+
+
+    DockArea = Class.extend({
+      initialize : function($element){
+        this.$element = $element;
+        //make at least one row
+        $('<div class="row"/>').appendTo($element).append($('<div class="col col-sm-12"/>'));
+        this.$ghostBorderN = $('<div class="ghost-border top"/>').hide().appendTo($element);
+        this.$ghostBorderS = $('<div class="ghost-border bottom"/>').hide().appendTo($element);
+        this.$ghostBorderE = $('<div class="ghost-border right"/>').hide().appendTo($element);
+        this.$ghostBorderW = $('<div class="ghost-border left"/>').hide().appendTo($element);
+        var self = this;
+        this.dropOrientation = null;
+        this.ghostTarget = null;
+        this.maxWidth = $(document).width();
+        this.$element.on('dragenter', function(event){
+          self.maxWidth = $(document).width();
+          self.showBorder.call(self, event.target, event);
+          event.stopPropagation();
+        }).on('dragover', function(event){
+            event.preventDefault();
+            event.stopPropagation();
+           self.showBorder.call(self, event.target, event);
+
+        }).on('dragleave', function(event){
+          self.hideGhost.call(self);
+          event.stopPropagation();
+        }).on('drop', function(event){
+           event.preventDefault();
+           event.stopPropagation();
+           self.dropPanel.call(self, event);
+           self.hideGhost.call(self);
+
+           console.log('dropped', event.originalEvent.dataTransfer.getData("text/plain"));
+        });
+      },  splitLeft : function($column){
+        //move the current child content to a nested column...
+        var $column1 = $('<div class="col col-sm-6"/>');
+        var $column2 = $('<div class="col col-sm-6"/>')
+          .append($column.children());
+        var $newrow =  $('<div class="row"/>').appendTo($column)
+          .append($column1).append($column2);
+        return $column1;
+      },  splitRight : function($column){
+        //move the current child content to a nested column...
+        var $column1 = $('<div class="col col-sm-6"/>')
+          .append($column.children());
+        var $column2 = $('<div class="col col-sm-6"/>');
+        var $newrow =  $('<div class="row"/>').appendTo($column)
+          .append($column1).append($column2);
+        return $column2;
+      }, dropPanel : function(event){
+          var id = event.originalEvent.dataTransfer.getData("text/plain");
+          if(!id) return;
+          var regex = /panel\-(\d+)/;
+          var result = regex.exec(id);
+          if(result.length != 2) return;
+          var panel = DockArea.IDX[parseInt(result[1], 10)];
+          if(!panel) return;
+          //var panel =
+          var $target = $(event.target);
+          if(!$target.is('.col')){
+            $target = $target.closest('.col');
+          }
+          if($target.is('.col')){
+            var $children = $target.children();
+            if(this.dropOrientation){
+
+              switch(this.dropOrientation){
+                case "left":
+                  this.splitLeft($target).append(panel.$element);
+                  break;
+                case "right":
+                  this.splitRight($target).append(panel.$element);
+                  break;
+                case "top":
+                //add another row
+                 $target.prepend(panel.$element);
+                 break;
+               case "bottom":
+               //add another row
+                $target.append(panel.$element);
+                break;
+              }
+
+            } else {//center orientation.... just append
+              $target.append(panel.$element);
+            }
+          }
+      }, showBorder : function(target, event){
+        var $target = $(target);
+        this.dropOrientation = null;
+        if(!$target.is('.col')){
+          $target = $target.closest('.col');
+        }
+        if($target.is('.col')){
+          this.$dropTarget  = $target;
+          var position = $target.offset();
+          position.width = $target.width();
+          position.height = $target.height();
+          //get mouse coords..
+          var mx = event.pageX - position.left;
+          var my = event.pageY - position.top;
+          //distance to center...
+          // if bigger than 1/4
+          console.log(position, mx, my);
+
+          var leftSided = mx < position.width/4;
+          if(leftSided){
+            this.dropOrientation = "left";
+            position.width /=2;
+            this.showGhost(position);
+            return;
+          }
+          var rightSided = mx > position.width-position.width/4;
+          if(rightSided){
+            this.dropOrientation = "right";
+            position.width /=2;
+            position.left += position.width;
+            this.showGhost(position);
+            return;
+          }
+          var topSided = my < position.height/4;
+          if(topSided){
+            this.dropOrientation = "top";
+            position.height /=2;
+            this.showGhost(position);
+            return;
+          }
+          var botSided = my > position.height-position.height/4;
+          if(botSided){
+            this.dropOrientation = "bottom";
+            position.height /=2;
+            position.top += position.height;
+            this.showGhost(position);
+            return;
+          }
+          this.showGhost(position);
+        } else if($target.is('.col')){
+            var position = $target.offset();
+
+          position.width = $target.width();
+          position.height = $target.height();
+          this.showGhost(position);
+
+        } else return;
+      }, showGhost : function(position){
+        //calculate a rectangle:
+        // x y z q
+        // x == topleft, y = topright, z = botleft, q = botright
+        var x = position.left;
+        if( x <= 5) x = 5;
+        var y = x + position.width;
+        if(y  > this.maxWidth-5) y = this.maxWidth-5;
+        this.$ghostBorderN.css({
+          top: position.top, left : x, width: y-x
+        }).show();
+        this.$ghostBorderS.css({
+          top : position.top+position.height, left : x, width : y-x
+        }).show();
+        this.$ghostBorderE.css({
+          top : position.top, left : y, height : position.height
+        }).show();
+        this.$ghostBorderW.css({
+          top : position.top, left : x,height : position.height
+        }).show();
+      }, hideGhost : function(){
+        this.$ghostBorderN.hide();
+        this.$ghostBorderS.hide();
+        this.$ghostBorderE.hide();
+        this.$ghostBorderW.hide();
+
+      }
+
+    });
+    DockArea.IDX = [];
+
+        $(document).ready(function(){
+          new DockArea($('#dockArea'));
+          new DockPanelCreator($('#createPanel'));
+        });
+
+        DockPanel = Class.extend({
+          initialize : function(options){
+            this.index = DockArea.IDX.length;
+            this.id = "panel-"+this.index;
+            DockArea.IDX.push(this);
+            var self = this;
+            this.options = $.extend({}, options);
+            this.$element = $('<div class="panel panel-default"/>');
+            var $heading = $('<div class="panel-heading" draggable="true"/>')
+              .appendTo(this.$element)
+              .on('dragstart', function(e){
+                e.originalEvent.dataTransfer.setData("text/plain", self.id);
+              });
+            this.$body = $('<div class="panel-body"/>').appendTo(this.$element);
+            this.$title = $('<span/>').appendTo($heading);
+            var $buttonGroup = $('<span class="pull-right"/>').appendTo($heading);
+            this.$minimize = $('<button class="dock-minimize btn btn-default btn-xs" title="Minimize"><span class="glyphicon glyphicon-minus"></span></button>')
+              .appendTo($buttonGroup);
+            this.$maximize = $('<button class="dock-maximize btn btn-default btn-xs" title="Maximize"><span class="glyphicon glyphicon-fullscreen"></span></button>')
+              .appendTo($buttonGroup);
+            this.$close =  $('<button class="dock-close btn btn-default btn-xs" title="Remove"><span class="glyphicon glyphicon-remove"></span></button>')
+              .appendTo($buttonGroup);
+            var self = this;
+            this.$element.click(function(e){
+              var $target = $(e.target);
+              if($target.is('.dock-minimize')){
+                if(self.options.onClose) self.options.onMinimize();
+                self.$body.toggle();
+                return false;
+              }
+              if($target.is('.dock-close')){
+                if(self.options.onClose) {
+                  var result = self.options.onClose();
+                  if(result === false) return false;
+                }
+                self.$element.remove();
+                DockArea.IDX[self.index] = false;
+                return false;
+              }
+            });
+          }, appendTo : function($e){
+            $e.append(this.$element);
+            return this;
+          }
+
+        });
+
+        DockPanelCreator = Class.extend({
+          initialize : function($element){
+            this.$source = $element;
+            this.$source.attr('draggable', 'true')
+            .on('dragstart', function(e){
+              var panel = new DockPanel();
+              panel.$title.text("Test-"+panel.index);
+              e.originalEvent.dataTransfer.setData("text/plain", panel.id);
+            });
+          }
+        });
+
     </script>
 </head>
 
 <body>
     <div class="container-fluid">
         <div class="row">
-            <div class="col-lg-12">
+            <div class="col col-md-12">
+                <span id="createPanel" class="btn btn-primary">NewDockPanel</span>
                 <app>
                     <div class="panel panel-default">
                         <div class="panel-body">
@@ -53,6 +312,9 @@
                     </div>
                 </app>
             </div>
+        </div>
+        <div id="dockArea">
+
         </div>
     </div>
 

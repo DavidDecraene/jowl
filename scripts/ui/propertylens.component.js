@@ -197,7 +197,7 @@ $.fn.extend({
   				}
   			};
 
-  			this.propertyChange = function(item){
+  			this.onResource = this.propertyChange = function(item){
   				if(!item) { return; }
   				self.property = item;
   				if(backlink.source != item.name) { backlink.hide(); } else { backlink.source = false; }

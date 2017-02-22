@@ -350,14 +350,6 @@ jOWL.parse = function(doc, options){
 	return document;
 };
 
-/**
-* A String representation of the OWL-RDFS document
-* @param xmlNode optional, node to generate a string from, when unspecified the entire document
-*/
-jOWL.toString = function(xmlNode){
-	if(!xmlNode){ return jOWL.toString(jOWL.document);}
-	return new XMLSerializer().serializeToString(xmlNode);// Gecko-based browsers, Safari, Opera.
-};
 
 /** create a document from string */
 jOWL.fromString = function(doc){
@@ -555,15 +547,38 @@ Without arguments this function will parse the current url and see if any parame
 @return With argument it will return a string that identifies the potential permalink fr the given entry
 */
 jOWL.permalink = function(entry){
-	if(!entry){
+	if(!entry) return;
+	if(entry instanceof jOWL.Document){
 		var param = jOWL.getURLParameters();
-		if(param.owlClass){ return jOWL(unescape(param.owlClass));}
+		var result = null;
+		if(param.owlClass){
+			result = entry.getResource(unescape(param.owlClass));
+			return result instanceof jOWL.Type.Class ? result : null;
+		}
+		if(param.owlProperty){
+			result =  entry.getResource(unescape(param.owlProperty));
+			return result instanceof jOWL.Type.Property ? result : null;
+		}
+		if(param.owlThing){
+			result = entry.getResource(unescape(param.owlThing));
+			return result instanceof jOWL.Type.Individual ? result : null;
+		}
+		if(param.resource){
+			return entry.getResource(unescape(param.resource));
+		}
+		return result;
 	}
 	else {
 		if(!entry.URI){ return false;}
 		var href = window.location.href.split("?", 2);
 		if(window.location.search){ href = href[0];}
-		if(entry instanceof jOWL.Type.Class){ return href+'?owlClass='+escape(entry.URI);}
+		if(entry instanceof jOWL.Type.Class){
+			return href+'?owlClass='+escape(entry.URI);
+		} else if(entry instanceof jOWL.Type.Property){
+			return href+'?owlProperty='+escape(entry.URI);
+		} else if(entry instanceof jOWL.Type.Individual){
+			return href+'?owlThing='+escape(entry.URI);
+		}
 	}
 	return false;
 };

@@ -136,6 +136,7 @@ jOWL.Document = Class.extend({
   },
   getResource : function(resource, options){
     if(!resource){ throw "No resource specified";}
+		if(resource instanceof jOWL.Type.Thing) return resource;
     var node;
   	var opts = $.extend({}, options);
     if(typeof resource == 'string'){
@@ -221,5 +222,7 @@ jOWL.Document = Class.extend({
 			}
 		}
 		return jsonobj;
+	}, toXML : function(){
+		return new XMLSerializer().serializeToString(this.document);
 	}
 });

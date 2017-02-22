@@ -28,7 +28,8 @@ jOWL.UI.TreeModel = Class.extend({
   }, leaf : function(node){
     node.jnode.addClass(this.options.focusClass);
     if(this.options.addChildren){
-      var entry = this.document.getResource(node.$name.attr('title'));
+      var data = node.$data.data('binding');
+      var entry = this.document.getResource(node.$data.data('binding'));
       if(entry && entry.children){ entry.children().each(function(){
         node.add(this); }); }
       }
@@ -45,27 +46,38 @@ jOWL.UI.TreeModel = Class.extend({
 
 });
 
+
 jOWL.UI.TreeNode = Class.extend({
-  initialize : function(tree, text, isRoot){
+  initialize : function(tree, userData, isRoot){
     this.tree = tree;
     var self = this;
     this.jnode = isRoot ? $('<li/>').addClass(this.tree.options.rootClass) :
       $('<li class="tvi"/>');
-    this.$name = null;
+    this.$data = null;
 
-    if(text){
-      this.$name = $('<span/>').addClass(this.tree.options.nameClass);
-      if(typeof text == "string") { this.$name.html(text); }
-      else if(text.bind) {
-        text.bind(this.$name);
+    if(userData){
+      this.$data = $('<span/>').addClass(this.tree.options.nameClass)
+        .data("binding", userData);
+      if(typeof userData == "string") { this.$data.html(userData); }
+      else if(userData.bind) {
+        userData.bind(this.$data);
+      } else {
+        this.$data.html(userData.toString());
       }
-      var n = this.$name;
-      this.$name.appendTo(this.jnode).click(function(){
-        var entry = tree.model.document.getResource(n.attr('title'));
-        if(entry && tree.options.onSelect.call(n, entry) === false) { return; }
-        tree.broadcast(entry);
-        if(tree.options.isStatic) { tree.propertyChange(entry); }
-        return false;});
+      var n = this.$data;
+      this.$data.appendTo(this.jnode).click(function(){
+        var $this = $(this);
+        tree.onSelect.call(tree, $this.data('binding'), $this);
+        return false;
+      });
+      if(tree.options.draggable){
+        this.$data.attr('draggable', 'true').on('dragstart', function(event){
+          var binding = $(event.target).data('binding');
+          if(!binding) return false;
+          var txt = typeof binding == "string" ? txt : binding.getURI(true);
+          event.originalEvent.dataTransfer.setData("text/plain", txt);
+        });
+      }
     }
 
     this.wrapper = $('<ul/>').appendTo(this.jnode);
@@ -106,6 +118,24 @@ jOWL.UI.Tree = Class.extend({
   initialize : function(node, options){
     this.options = options;
     this.rack = $('<ul/>').addClass(options.treeClass).appendTo(node);
+    var self = this;
+    if(options.onDrop){
+      this.rack.on('dragover', function(event){
+         if(!self.model) return;
+         event.preventDefault();
+      }).on('drop', function(event){
+        event.preventDefault();
+        if(!self.model) return;
+        var uri = event.originalEvent.dataTransfer.getData('text/plain');
+        if(!uri) return;
+        var resource = self.model.document.getResource(uri);
+        if(!resource) return false;
+        var $target = $(event.target);
+        if(typeof options.onDrop == 'function'){
+          options.onDrop.call($target, resource, $target);
+        }
+      });
+    }
     var tree = this;
   }, root : function(item){
     var rt = null; //root
@@ -133,6 +163,17 @@ jOWL.UI.Tree = Class.extend({
     }
   }, setModel : function(model){
     this.model = model;
+  }, onSelect : function(entry, $element){
+    if(!this.model || !entry) return;
+    var resource = this.model.document.getResource(entry);
+    if(!resource) return;
+    if(resource && this.options.onSelect.call($element, resource) === false) {
+      return;
+    }
+    this.broadcast(resource);
+    if(this.options.isStatic) {
+      this.propertyChange(resource);
+    }
   }
 
 
@@ -151,10 +192,38 @@ Tree View
 			nameClass: "name",
 			treeClass: "jowl-treeview",
 			rootClass: "root",
-			onSelect : function(item){}, //function that can be overwritten to specfy behavior when something is selected
-			rootThing : false, //if true then topnode is (owl) 'Thing'
-			isStatic : false, // if static then selections will refresh the entire tree
-			addChildren : false //add a given objects children to the treeview as well
+      draggable : true,
+      /**
+       * onDrop - Function triggered when resources are dropped on the tree.
+       *
+       * @param  {type} resource A jOWL Thing
+       * @param  {type} $target  The target jquery element on which we drop
+       */
+
+      onDrop : function(resource, $target){
+
+      },
+			/**
+			 * onSelect - function that can be overwritten to specfy behavior when something is selected
+			 *
+			 * @param  {type} item A jOWL Thing
+			 */
+			onSelect : function(item){
+
+      },
+			/**
+			 *  if true then topnode is (owl) 'Thing'
+			 */
+			rootThing : false,
+			/**
+			 * if static then selections will refresh the entire tree
+			 */
+			isStatic : false,
+
+			/**
+			 *  add a given objects children to the treeview as well
+			 */
+			addChildren : false
 		}, options);
 
 

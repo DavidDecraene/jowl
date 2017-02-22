@@ -22,9 +22,10 @@
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
 <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
   <script type="text/javascript" src="scripts/inheritance.js"></script>
-	<script type="text/javascript" src="scripts/ui/jquery.tooltip.js"></script>
+	<script type="text/javascript" src="scripts/jquery.tooltip.js"></script>
+<!--  <script type="text/javascript" src="build/dist/scripts/jowl.min.js"></script>
+  <script type="text/javascript" src="build/dist/scripts/ui.min.js"></script>-->
 	<script type="text/javascript" src="scripts/jOWL.js"></script>
-	<script type="text/javascript" src="scripts/jOWLBrowser.js"></script>
   <script type="text/javascript" src="scripts/jowl.thing.js"></script>
   <script type="text/javascript" src="scripts/jowl.element.js"></script>
   <script type="text/javascript" src="scripts/jowl.document.js"></script>
@@ -36,6 +37,7 @@
   <script type="text/javascript" src="scripts/jowl.intersection.js"></script>
   <script type="text/javascript" src="scripts/jowl.restriction.js"></script>
   <script type="text/javascript" src="scripts/jowl.sparql-dl.js"></script>
+	<script type="text/javascript" src="scripts/ui/jOWLBrowser.js"></script>
 	<script type="text/javascript" src="scripts/ui/jOWL_UI.js"></script>
   <script type="text/javascript" src="scripts/ui/autocomplete.component.js"></script>
   <script type="text/javascript" src="scripts/ui/treeview.component.js"></script>
@@ -67,39 +69,49 @@ $(document).ready(function() {
 });
 
 function initjOWL(document){
+    var resource = jOWL.permalink(document);
+    var lazyloadViews = [];
 
-		createOntologyWidget(document);
+    var ontologywidget = $('#title').owl_propertyLens(document);
+  	ontologywidget.propertyChange(document.getOntology());
+
 		var conceptWidget = createConceptWidget(document);
+    if(resource && resource instanceof jOWL.Type.Class){
+      conceptWidget.onResource(resource);
+    }
 
 		if(configuration.classOverview){
-			jOWLBrowser.views.push({query: "Class(?x)", element : $('#classlist'),
-      widget : conceptWidget});
-			}
+      var allClasses = new SparqlList($('#classlist'), "Class(?x)", "?x");
+      allClasses.addListener(conceptWidget);
+      lazyloadViews.push(allClasses);
+		}
 
 		if(configuration.propertiesTab){
-			var propertyWidget = createPropertyWidget(document);
-			jOWLBrowser.views.push({query: "ObjectProperty(?x)", element : $('#OPlist'), widget : propertyWidget});
-			jOWLBrowser.views.push({query: "DatatypeProperty(?x)", element : $('#DPlist'), widget : propertyWidget});
-			}
+      var allObjectProperties = new SparqlList($('#OPlist'), "ObjectProperty(?x)", "?x");
+      var allDatatypeProperties = new SparqlList($('#DPlist'), "DatatypeProperty(?x)", "?x");
+      $('#propertywidget').show();
+    	var propertyWidget = $('#propertywidget .resourcebox')
+    		.owl_propertyLens(document, {"term" : {split: ", "}});
+
+      allObjectProperties.addListener(propertyWidget);
+      allDatatypeProperties.addListener(propertyWidget);
+      lazyloadViews.push(allObjectProperties);
+      lazyloadViews.push(allDatatypeProperties);
+    }
 
 		if(configuration.individualsTab){
-			var thingWidget = createIndividualsWidget(document);
-
-			setTimeout(function(){//show individuals asynchronously
-				var arr = new jOWL.Array();
-				for(key in document.index('Thing')){
-						arr.concat(document.index('Thing')[key], true);
-					}
-				showOverviewResults(document, arr, $('#thinglist'), thingWidget);
-			}, 200);
-
-			}
+      var allThings = new SparqlList($('#thinglist'), "Thing(?x)", "?x");
+      $('#thingwidget').show();
+    	var thingWidget = $('#thingwidget .resourcebox').owl_propertyLens(document, {"sparql-dl:PropertyValue(owl:Thing, ?p, ?t)" : {sort: "?p"}});
+      allThings.addListener(thingWidget);
+      lazyloadViews.push(allThings);
+		}
 
 		if(configuration.sparqldlTab){
 			createSparqlDLWidget(document);
-			}
+		}
 
-		createOverviewWidget(document);
+		createOverviewWidget(document, lazyloadViews);
 }
 </script>
 	</head>
@@ -170,7 +182,7 @@ function initjOWL(document){
 					</div>
 			</div>
 			<div id="tab2" class="tab-pane fade">
-				<div>
+				<div  class="panel-body">
 					<p>
 						<b>ObjectProperties</b>
 						<div id="OPlist"></div>
@@ -200,7 +212,7 @@ function initjOWL(document){
 				</div>
 			</div>
 			<div id="tab3" class="tab-pane fade">
-				<div id="thinglist"></div>
+				<div id="thinglist"  class="panel-body"></div>
 				<hr class="space"/>
 				<div id="thingwidget">
 					<div class="resourcebox panel panel-default" data-jowl="owl:Thing">
@@ -216,38 +228,42 @@ function initjOWL(document){
 				</div>
 			</div>
 			<div id="tab4" class="tab-pane fade">
-				<h4>Enter a query:</h4>
-				<form id="sparql"><input type="text" size="100"/></form>
-				<hr class="space"/>
-				<table style="width:100%"><tr>
-				<td style="width:50%;">
-					<h3>Results</h3>
-					<div class="loader hide" >
-						<div style="color:black">Querying, Please Stand By</div>
-						<img src="http://ontologyonline.org/img/ajax-loader.gif" alt="Loading Image"/>
-					</div>
-					<div id="sparqlresults" class="box"></div>
-				</td>
-				<td>
-					<h3>Syntax</h3>
-					<ul>
-						<li>Type(?a, ?b)</li>
-						<li>PropertyValue(?a, ?b, ?c)</li>
-						<li>Class(?a)</li>
-						<li>ObjectProperty(?a)</li>
-						<li>DatatypeProperty(?a)</li>
-					</ul>
-					Examples: see <a href="http://jowl.ontologyonline.org/SPARQL-DL.html">jOWL SPARQL-DL Test Suite page</a>
-				</td>
-				</tr></table>
+        <div  class="panel-body">
+
+  				<form id="sparql" class="input-group">
+            <label class="input-group-addon">Query</label>
+            <input type="text" size="100" placeholder="Enter a sparql-dl query" class="form-control"/>
+          </form>
+          <div class="row">
+            <div class="col col-sm-6">
+              <h3>Results</h3>
+              <div class="loader hide" >
+                <div style="color:black">Querying, Please Stand By</div>
+                <img src="http://ontologyonline.org/img/ajax-loader.gif" alt="Loading Image"/>
+              </div>
+              <div id="sparqlresults" class="box"></div>
+            </div>
+            <div class="col col-sm-6">
+              <h3>Syntax</h3>
+    					<ul>
+    						<li>Type(?a, ?b)</li>
+    						<li>PropertyValue(?a, ?b, ?c)</li>
+    						<li>Class(?a)</li>
+    						<li>ObjectProperty(?a)</li>
+    						<li>DatatypeProperty(?a)</li>
+    					</ul>
+    					Examples: see <a href="http://jowl.ontologyonline.org/SPARQL-DL.html">jOWL SPARQL-DL Test Suite page</a>
+            </div>
+          </div>
+        </div>
 			</div>
 
       </div>
 		</div>
 		</div>
 
-		<hr class="space"/><hr />
-		<div class="column span-24">
+		<hr class="space"/>
+		<div class="footer">
 			<p>Powered by <a href="http://jowl.ontologyonline.org" title="jOWL" style="font-size:large">jOWL</a>, semantic javascript library.<br/>
 			Created by <a href="http://ontologyonline.org/DavidDecraene.html" style="text-decoration:none;">David Decraene</a>.</p>
 			<p><a href="http://ontologyonline.org" style="text-decoration:none;">OntologyOnline.org</a></p>

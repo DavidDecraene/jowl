@@ -8,8 +8,10 @@ jOWL.Type.Thing = Class.extend({
 	equals : function(id){
 		var URI = (typeof id == "string") ? jOWL.resolveURI(id) : id.URI;
 		return URI === this.URI;
-	},
-	parseNew : function(node){
+	}, getURI : function(full){
+		if(full) return this.baseURI + this.name;
+		else return this.URI;
+	}, parseNew : function(node){
 		if(!(node instanceof jOWL.Element)) throw new Error("no Element");
 		var identifier = node.rdfID() || node.rdfAbout();
 		if(!identifier){
@@ -24,7 +26,10 @@ jOWL.Type.Thing = Class.extend({
 			this.baseURI = this.isExternal[0];
 			this.name = this.isExternal[1];
 			this.URI = this.baseURI+this.name;}
-		else { this.baseURI = jOWL.namespace; this.name = identifier; this.URI = this.name;}
+		else {
+			this.baseURI = jOWL.namespace;
+			this.name = identifier;
+			this.URI = this.name;}
 		this.element = node;
 		$(this.element.node).data("binding", this);
 		this.type = node.nodeName();

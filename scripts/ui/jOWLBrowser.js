@@ -6,10 +6,6 @@
 *	http://jowl.ontologyonline.org
 */
 
-var jOWLBrowser = {
-	isReady : false,
-	views : []
-};
 
 function createSparqlDLWidget(document){
 		function displayResults(obj){
@@ -46,80 +42,107 @@ function createSparqlDLWidget(document){
 		});
 }
 
-function showOverviewResults(document, results, list, widget){
-	var maxcount = 50;
-	var hidden = $('<div/>').hide();
-	jOWL.throttle(results, {
-		limit : 200,
-		modify : function(item){
-			maxcount--;
-			var $el = item.bind($("<span class='jowl_link'/>"));
-			$el.click(function(){
-				if(widget && widget.propertyChange){ widget.propertyChange(
-					document.getResource(this.title)); }
-			});
-			if(maxcount > 0)  { if(maxcount != 49) list.append($("<span/>").text(",   ")); $el.appendTo(list); }
-			else if(maxcount === 0){ list.append(hidden); }
-			if(maxcount <=0) {if(maxcount != 0) hidden.append($("<span/>").text(",   "));  $el.appendTo(hidden);}
-		},
-		onComplete : function(arr){
-			if(maxcount < 0) list.append($("<div class='jowl_link' style='margin-top:5px;'/>").text("... ["+maxcount*-1+" more]").click(function(){hidden.slideDown(); $(this).hide(); }));
-		},
-		chewsize : 20,
-		timing : 5
-	})
-
-}
-
-function createOverviewWidget(document){
-
-	function sparql(query, list, widget, cb){
-		var maxcount = 50; var hidden = $('<div/>').hide();
-		new jOWL.SPARQL_DL(document, query).execute( {
+SparqlList = Class.extend({
+	include : [EventListener],
+	initialize : function($element, query, variable){
+		this.$element = $element;
+		this.querySyntax = query;
+		this.variable = variable;
+		this.$hidden = $('<div/>').hide();
+		var self = this;
+		this.$element.click(function(e){
+			var $target = $(e.target);
+			if($target.is('.expand')){
+				self.$hidden.slideDown(); $target.hide();
+				return false;
+			}
+			if($target.is('a')){
+				if(!self.document) return false;
+				var title = $target.attr('title');
+				if(title){
+					var resource = self.document.getResource($target.attr('title'));
+					self.fireEvent("Resource", resource);
+				}
+				return false;
+			}
+		});
+	}, query : function(document, cb){
+		var self = this;
+		this.document = document;
+		new jOWL.SPARQL_DL(document, this.querySyntax).execute( {
 			limit : 200,
 			onComplete : function(res){
 				if(!res.results) {return; }
-				showOverviewResults(document, res.jOWLArray("?x"), list, widget);
+				self.setResults(document, res.jOWLArray(self.variable));
 				if(cb){ cb();}
 			}
 		});
+	}, setResults : function(document, results){
+		var maxcount = 50;
+		var currCount = maxcount;
+		var self = this;
+		jOWL.throttle(results, {
+			limit : 200,
+			modify : function(item){
+				currCount--;
+				if(currCount > 0)  {
+					if(currCount != maxcount-1) self.$element.append($("<span/>").text(",   "));
+					item.bind($("<a href='#'/>")).appendTo(self.$element);
+				} else {
+					if(currCount === 0){ self.$element.append(self.$hidden); }
+					else self.$hidden.append($("<span/>").text(",   "));
+					item.bind($("<a href='#'/>")).appendTo(self.$hidden);
+				}
+			},
+			onComplete : function(){
+				if(currCount < 0) {
+					self.$element
+					.append($("<a href='#' class='expand' style='margin-top:5px;'/>")
+					.text("... ["+currCount*-1+" more]"));
+				}
+			},
+			chewsize : 50,
+			timing : 5
+		});
 	}
+});
 
-	function triggerView(num){
-		var v = jOWLBrowser.views[num];
-		if(v){
-			sparql(v.query, v.element, v.widget, function(){
-				triggerView(num+1);
-			});
-		}
-	}
-	triggerView(0);
+function createOverviewWidget(document, views){
+	if(!views.length) return;
+	var view = views.splice(0, 1);
+	view[0].query(document, function(){
+		createOverviewWidget(document, views);
+	});
+}
 
-};
+
 
 function createConceptWidget(document){
-		var widget = {};
+		var widget = {	};
 		jOWL.UI.asBroadcaster(widget);
-		widget.propertyChange = function(item){
+		widget.onResource =  widget.propertyChange = function(item){
 			widget.broadcast(item);
 		}
 
 		var jnode = $('#conceptwidget');
 
-		var descriptionpanel = $('.resourcebox', jnode).owl_propertyLens(document, {
+		var descriptionpanel = $('.resourcebox', jnode).owl_propertyLens(document,
+			{
 			"term" : {split: ", "},
 			"sparql-dl:DirectType(?i, owl:Class)": {split: ", "},
 			"owl:disjointWith": {split: ", "},
 			onChange : {
 				"owl:Thing": function(source, target, resourcebox){
-					this.addClass("jowl_tooltip"); tooltip.display(target, this); },
+					this.addClass("jowl_tooltip");
+					tooltip.display(target, this);
+				},
 				"owl:Class": function(source, target, resourcebox){
-					resourcebox.link(source, target, this); }
+					resourcebox.link(source, target, this);
+				}
 			}
 		});
 
-		var tooltip = $('#thingwidget .resourcebox').clone(true)
-			.removeClass("owl_UI_box").addClass("owl_UI");
+		var tooltip = $('#thingwidget .resourcebox').clone(true);
 		tooltip.children('.title').remove();
 		tooltip = tooltip.owl_propertyLens(document, {tooltip: true});
 
@@ -165,18 +188,3 @@ function createConceptWidget(document){
 		widget.show();
 		return widget;
 	}
-
-function createPropertyWidget(document){
-	$('#propertywidget').show();
-	return $('#propertywidget .resourcebox').owl_propertyLens(document, {"term" : {split: ", "}});
-}
-
-function createIndividualsWidget(document){
-	$('#thingwidget').show();
-	return $('#thingwidget .resourcebox').owl_propertyLens(document, {"sparql-dl:PropertyValue(owl:Thing, ?p, ?t)" : {sort: "?p"}});
-}
-
-function createOntologyWidget(document){
-	var ontologywidget = $('#title').owl_propertyLens(document);
-	ontologywidget.propertyChange(document.getOntology());
-}
