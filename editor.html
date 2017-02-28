@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <title>Test Onto</title>
+    <meta charset="utf-8">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.6/css/bootstrap.min.css" integrity="sha384-rwoIResjU2yc3z8GV/NPeZWAv56rSmLldC3R/AZzGRnGxQQKnKkoFVhFQhNUwEyJ" crossorigin="anonymous">
+    <link rel="stylesheet" href="css/font-awesome-4.7.0/css/font-awesome.min.css">
+    <link rel="stylesheet" href="css/docking.components.css">
+    <link rel="stylesheet" href="css/jOWL.css" type="text/css"/>
+    <style type="text/css">
+        /*
+     * Base structure
+     */
+        /* Move down content because we have a fixed navbar that is 50px tall */
+
+        body {
+            padding-top: 50px;
+        }
+        /*
+     * Typography
+     */
+
+        h1 {
+            margin-bottom: 20px;
+            padding-bottom: 9px;
+            border-bottom: 1px solid #eee;
+        }
+        /*
+     * Sidebar
+     */
+
+        .sidebar {
+            position: fixed;
+            top: 51px;
+            bottom: 0;
+            left: 0;
+            z-index: 1000;
+            padding: 20px;
+            overflow-x: hidden;
+            overflow-y: auto;
+            /* Scrollable contents if viewport is shorter than content. */
+            border-right: 1px solid #eee;
+        }
+        /* Sidebar navigation */
+
+        .sidebar {
+            padding-left: 0;
+            padding-right: 0;
+        }
+
+        .sidebar .nav {
+            margin-bottom: 20px;
+        }
+
+        .sidebar .nav-item {
+            width: 100%;
+        }
+
+        .sidebar .nav-item+.nav-item {
+            margin-left: 0;
+        }
+
+        .sidebar .nav-link {
+            border-radius: 0;
+        }
+        /*
+     * Dashboard
+     */
+        /* Placeholders */
+
+        .placeholders {
+            padding-bottom: 3rem;
+        }
+
+        .placeholder img {
+            padding-top: 1.5rem;
+            padding-bottom: 1.5rem;
+        }
+
+
+        .editor {
+          padding-bottom:15px;
+        }
+    </style>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.6/js/bootstrap.min.js" integrity="sha384-vBWWzlZJ8ea9aCX4pEW3rVHjgjt7zpkNpZk+02D9phzyeVkE+jo0ieGizqPLForn" crossorigin="anonymous"></script>
+    <script type="text/javascript" src="scripts/inheritance.js"></script>
+    <script type="text/javascript" src="scripts/jquery.tooltip.js"></script>
+    <script type="text/javascript" src="scripts/jOWL.js"></script>
+    <script type="text/javascript" src="scripts/jOWL_UI.js"></script>
+    <script type="text/javascript" src="scripts/jOWLBrowser.js"></script>
+    <script type="text/javascript" src="scripts/jowl.element.js"></script>
+    <script type="text/javascript" src="scripts/jowl.document.js"></script>
+    <script type="text/javascript" src="scripts/jowl.datatype.js"></script>
+    <script type="text/javascript" src="scripts/jowl.thing.js"></script>
+    <script type="text/javascript" src="scripts/jowl.ontology.js"></script>
+    <script type="text/javascript" src="scripts/jowl.individual.js"></script>
+    <script type="text/javascript" src="scripts/jowl.property.js"></script>
+    <script type="text/javascript" src="scripts/jowl.class.js"></script>
+    <script type="text/javascript" src="scripts/jowl.intersection.js"></script>
+    <script type="text/javascript" src="scripts/jowl.restriction.js"></script>
+    <script type="text/javascript" src="scripts/jowl.sparql-dl.js"></script>
+    <script type="text/javascript" src="scripts/ui/docking.components.js"></script>
+  	<script type="text/javascript" src="scripts/ui/jOWL_UI.js"></script>
+    <script type="text/javascript" src="scripts/ui/autocomplete.component.js"></script>
+    <script type="text/javascript" src="scripts/ui/treeview.component.js"></script>
+    <script type="text/javascript" src="scripts/ui/propertylens.component.js"></script>
+    <script type="text/javascript">
+      DockArea.options.bootstrap = 4;
+        var doc = jOWL.create.document("http://test.com");
+        var owlDocument = jOWL.parse(doc);
+        console.log(owlDocument.toXML());
+        console.log(owlDocument.getOntology().description());
+
+        OntologyProvider = Class.singleton({
+          include :  [EventListener],
+          initialize : function(){
+          }, setOntology : function(ontology){
+            this.ontology = ontology;
+            this.fireEvent("Document", ontology);
+          }
+
+        }).getInstance();
+
+        jOWL.load("data/wine.owl",
+          function(owlDocument){
+            OntologyProvider.setOntology(owlDocument);
+
+          }, {reason : true, locale : 'en' });
+
+        TermEditor = Class.extend({
+          initialize : function(){
+            this.$element = $('<div class="editor"/>');
+            var row =   $('<div class="row"/>').appendTo(this.$element);
+            var col1 = $('<div class="col col-sm-3"/>').appendTo(row);
+            var col2 = $('<div class="col col-sm-9"/>').appendTo(row);
+            var group = $('<div class="input-group"/>').appendTo(col1);
+            $('<span class="input-group-addon">locale</span>').appendTo(group);
+            this.$locale = $('<input type="text" class="form-control">').appendTo(group);
+            group = $('<div class="input-group"/>').appendTo(col2);
+            $('<span class="input-group-addon">label</span>').appendTo(group);
+            this.$label = $('<input type="text" class="form-control">').appendTo(group);
+          }
+        });
+
+        DescriptionEditor = Class.extend({
+          initialize : function(){
+            this.$element = $('<div class="editor"/>');
+            $('<h4>Description</h4>').appendTo(this.$element);
+            this.$description = $('<textarea class="form-control">').appendTo(this.$element);
+
+          }
+        });
+
+
+        ConceptTreeEdit = Class.extend(DockPanel, {
+          initialize : function(){
+              this.parent();
+              this.$title.text("Class Tree View");
+
+          }, onDocument : function(document){
+            this.$body.empty();
+
+            var tree = $('<div/>').appendTo(this.$body).owl_treeview(document,
+              {addChildren: true, isStatic: true});
+            var div = $('<div class="input-group"/>')
+              .appendTo(this.$body);
+            var autocomplete = $('<input type="text" class="form-control" placeholder="Enter Search Terms here">')
+              .appendTo(div)
+              .owl_autocomplete(document, {focus : true, chars : 2, filter : 'Class'});
+            autocomplete.addListener(tree);
+            var self = this;
+            tree.addListener({
+              onResource : function(item){
+                self.fireEvent("Resource", item);
+              }
+            });
+            for(x in document.getIDIndex()){
+    					var entry = document.getIDIndex()[x];
+    					if(entry instanceof jOWL.Type.Class){
+    						concept = entry;
+                tree.setResource(concept);
+    						break;
+    					}
+    				}
+          }, initProvider : function(){
+            OntologyProvider.addListener(this);
+            if(OntologyProvider.ontology) this.onDocument(OntologyProvider.ontology);
+          }
+        });
+
+        ClassDescriptionEdit = Class.extend(DockPanel, {
+          initialize : function(){
+              this.parent();
+              this.$title.text("Class Info View");
+              //if(OntologyProvider.ontology) this.onDocument(OntologyProvider.ontology);
+          }, onResource : function(owlClass){
+            if(!(owlClass instanceof jOWL.Type.Class)) return;
+            this.$body.empty();
+            this.$title.text(owlClass.URI);
+            var descriptionEditor = new DescriptionEditor();
+            descriptionEditor.$description.val(owlClass.description());
+            descriptionEditor.$element.appendTo(this.$body);
+            var terms = owlClass.terms();
+            var self = this;
+            var $edit = $('<div class="editor"/>').appendTo(self.$body);
+            $('<h4 >Terms</h4>').appendTo($edit);
+            if(terms && terms.length){
+              terms.forEach(function(v){
+                var termEditor = new TermEditor();
+                termEditor.$element.appendTo($edit);
+                termEditor.$locale.val(v[2]);
+                termEditor.$label.val(v[0]);
+              });
+            }
+            //TODO: get disjoints...
+            //TODO: get instances...
+            $edit = $('<div class="editor"/>').appendTo(self.$body);
+            $('<h4>Relations</h4>').appendTo($edit);
+            new jOWL.SPARQL_DL(owlClass.element.document,
+              "sparql-dl:PropertyValue(item, ?p, ?t)", {
+                item : owlClass
+            }).execute({
+              onComplete : function(r){
+                if(!r.results) return;
+                r.results.forEach(function(entry){
+                  var property = entry['?p'];
+                  var target = entry['?t'];
+                  var $div = $('<div/>').appendTo($edit);
+                  if(property) property.bind($('<span/>').appendTo($div));
+
+                  if(target){
+                    if(property) $('<span>: </span>').appendTo($div);
+                    target.bind($('<span/>').appendTo($div));
+                  }
+                });
+              }
+            });
+          }
+        });
+
+        OntologyEdit = Class.extend(DockPanel, {
+          initialize : function(){
+              this.parent();
+              this.$description = $('<div/>').appendTo(this.$body);
+              OntologyProvider.addListener(this);
+              if(OntologyProvider.ontology) this.onDocument(OntologyProvider.ontology);
+          }, onResource : function(ontology){
+            if(!(ontology instanceof jOWL.Type.Ontology)) return;
+            this.$body.empty();
+            this.$title.text(ontology.baseURI);
+            var descriptionEditor = new DescriptionEditor();
+            descriptionEditor.$description.val(ontology.description());
+            descriptionEditor.$element.appendTo(this.$body);
+            var terms = ontology.terms();
+            var self = this;
+            $('<h4>Terms</h4>').appendTo(this.$body);
+            if(terms && terms.length){
+              terms.forEach(function(v){
+                var termEditor = new TermEditor();
+                termEditor.$element.appendTo(self.$body);
+                termEditor.$locale.val(v[2]);
+                termEditor.$label.val(v[0]);
+              });
+            }
+          }, onDocument : function(document){
+            this.onResource(document.getOntology());
+          }, remove : function(){
+            this.parent();
+            OntologyProvider.removeListener(this);
+          }
+
+        });
+
+        $(document).ready(function() {
+            var area = new DockArea($('#dockArea'));
+            var $column = $('.dock-col', area.$element);
+
+            var split1 = area.splitVertical($column);
+            split1.top.append(new OntologyEdit().$element);
+            var split = area.splitHorizontal(split1.bottom);
+
+            var tabs = new TabDockPanel();
+            tabs.appendTo(split.left);
+            var treeEdit = new ConceptTreeEdit();
+            var classEdit = new ClassDescriptionEdit();
+            treeEdit.addListener(classEdit);
+            tabs.addPanel(treeEdit)
+            tabs.addPanel(classEdit);
+            treeEdit.initProvider();
+
+            tabs = new TabDockPanel();
+            tabs.appendTo(split.right);
+            treeEdit = new ConceptTreeEdit();
+            classEdit = new ClassDescriptionEdit();
+            treeEdit.addListener(classEdit);
+            tabs.addPanel(treeEdit)
+            tabs.addPanel(classEdit);
+            treeEdit.initProvider();
+
+            new DockPanelCreator($('#ClassTree'), {
+              create : function(){ return new ConceptTreeEdit(); }
+            });
+            new DockPanelCreator($('#ontoEdit'), {
+              create : function(){
+                return new OntologyEdit();
+              }
+            });
+
+        });
+    </script>
+</head>
+
+<body>
+    <nav class="navbar navbar-toggleable-md navbar-inverse fixed-top bg-inverse">
+        <button class="navbar-toggler navbar-toggler-right hidden-lg-up" type="button" data-toggle="collapse" data-target="#navbarsExampleDefault" aria-controls="navbarsExampleDefault" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+        <a class="navbar-brand" href="#">Ontology Editor</a>
+
+        <div class="collapse navbar-collapse" id="navbarsExampleDefault">
+            <ul class="navbar-nav mr-auto">
+                <li class="nav-item active">
+                    <a class="nav-link" href="#">Home <span class="sr-only">(current)</span></a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#">Settings</a>
+                </li>
+            </ul>
+            <form class="form-inline mt-2 mt-md-0">
+                <input class="form-control mr-sm-2" type="text" placeholder="Search">
+                <button class="btn btn-outline-success my-2 my-sm-0" type="submit">Search</button>
+            </form>
+        </div>
+    </nav>
+
+    <div class="container-fluid">
+        <div class="row">
+            <nav class="col-sm-3 col-md-2 hidden-xs-down bg-faded sidebar">
+
+                <h1  class="navbar-brand">Drag and drop components</h1>
+                <ul class="nav nav-pills flex-column">
+                    <li class="nav-item">
+                        <a class="nav-link" id="ClassTree" href="#ClassTree"><i class="fa fa-puzzle-piece" aria-hidden="true"></i> owl:Class TreeView</a>
+                    </li>
+                    <li class="nav-item">
+
+                        <a class="nav-link" id="ontoEdit" href="#ontoEdit"><i class="fa fa-puzzle-piece" aria-hidden="true"></i> owl:Ontology View</a>
+                    </li>
+                </ul>
+            </nav>
+
+            <main class="col-sm-9 offset-sm-3 col-md-10 offset-md-2 pt-3">
+                <h1>Dashboard</h1>
+                <div id="dockArea">
+
+                </div>
+
+            </main>
+        </div>
+    </div>
+
+
+</body>
+
+</html>
