@@ -1,49 +1,29 @@
-$.fn.extend({
-
-/**
-autocomplete field.
-*/
-	owl_autocomplete : function(document, options){
-    if(!(document instanceof jOWL.Document)) throw new Error("No Document passed");
-		options = $.extend({
-			time:500, //responsetime to check for new keystrokes, default 500
-			chars:3, //number of characters needed before autocomplete starts searching
-			focus:false, //put cursor on the input field when loading
-			limit:10, //limit size of result list to given amount
-			contentClass : "ui-widget-content",
-			focusClass : jOWL.UI.defaults.focusClass,
-			hintClass : "ui-autocomplete-hint",
-			hint: false, //Message (if any) to show when unfocused.
-			onSelect : function(item){}, //function that can be overridden
-			formatListItem : function(listitem, type, identifier, termarray){ //formatting of results, can be overridden
-				if(type){ listitem.append($('<div class="type"/>').text(type)); }
-				listitem.append($('<div class="name"/>').text(identifier));
-				if(termarray.length) { listitem.append($('<div class="terms"/>').text(termarray.join(', '))
-					.prepend($('<span/>').addClass('termlabel').text("Terms: ")));
-			}
-		}}, options);
-		jOWL.UI.asBroadcaster(this);
-
-		this.showHint = function(){
-			this.hinted = true;
-			if(options.hint){
-				this.addClass(options.hintClass).val(options.hint);
-			}
-			else {this.val(''); }
-		};
-		this.showHint();
-
-		var self = this; var old = ''; var open = false; self.val('');
+jOWL.UI.Autocomplete = Class.extend({
+  include :  [EventListener],
+	initialize : function($element, options){
+		this.$element = $element;
+		this.options = options;
+		if(this.options.hint){
+			this.attr('placeholder', this.options.hint);
+		}
+		var autocomplete = this;
+		var self = this.$element;
+		var old = ''; var open = false;
+		self.val('');
 		var results = $('<ul/>').addClass(options.contentClass).addClass("jowl_autocomplete_results");
-		var div = $("<div/>").addClass(options.wrapperClass).append(results); this.after(div);
+
+		var div = $("<div/>").addClass(options.wrapperClass).append(results);
+		self.after(div);
 		results.cache = {};
-		results.isEmpty = function(){ for(x in results.cache) { return false; } return true; };
+		results.isEmpty = function(){ for(var x in results.cache) { return false; }
+			return true;
+		};
 		results.close = function(){this.hide();};
 		results.open = function(q, cache){
 			this.show();
 			if(q){
 				if(!cache || results.isEmpty()) {
-          results.cache = document.query(q, options);
+          results.cache = autocomplete.document.query(q, options);
         }
 				else {
 					var newcache = {};
@@ -68,15 +48,15 @@ autocomplete field.
 			var clickFunction = function(){
 
 				var node = $(this);
-        var res = document.getResource(node.data("jowltype"));
+        var res = autocomplete.document.getResource(node.data("jowltype"));
 				if(options.onSelect.call(node, res) === false) { return; }
-				self.broadcast(res);
+				autocomplete.fireEvent("Resource", res);
 			};
 
 			var onHover = function(){ $(this).addClass(options.focusClass); };
 			var offHover = function(){$(this).removeClass(options.focusClass);};
 
-			for(x in data){
+			for(var x in data){
 				if(count < options.limit){
 					var item = data[x];
 					var v = jOWL.isExternal(x);
@@ -116,17 +96,43 @@ autocomplete field.
 
 		self.bind('keyup', function(){ if(!this.value.length){ results.close(); open = false; } });
 		self.bind('blur', function(){
-			if(open){setTimeout(function(){results.close();}, 200);open = false;}
-			if(!self.val().length){self.showHint();}
-			});
+			if(open){setTimeout(function(){
+					results.close();}, 200);open = false;}
+		});
 		//timeout for registering clicks on results.
 		self.bind('focus', function(){
-			if(self.hinted){
-				self.hinted = false;
-				$(this).removeClass(options.hintClass).val('');
-			}
 			if(self.val().length && !open){results.open('', open);open = true;}});
-		//reopen, but do not get results
-		return this;
+	}, setDocument : function(document){
+		this.document = document;
+	}
+});
+
+$.fn.extend({
+
+/**
+autocomplete field.
+*/
+	owl_autocomplete : function(document, options){
+    if(!(document instanceof jOWL.Document)) throw new Error("No Document passed");
+		options = $.extend({
+			time:500, //responsetime to check for new keystrokes, default 500
+			chars:3, //number of characters needed before autocomplete starts searching
+			focus:false, //put cursor on the input field when loading
+			limit:10, //limit size of result list to given amount
+			contentClass : "ui-widget-content",
+			focusClass : jOWL.UI.defaults.focusClass,
+			hintClass : "ui-autocomplete-hint",
+			hint: false, //Message (if any) to show when unfocused.
+			onSelect : function(item){}, //function that can be overridden
+			formatListItem : function(listitem, type, identifier, termarray){ //formatting of results, can be overridden
+				if(type){ listitem.append($('<div class="type"/>').text(type)); }
+				listitem.append($('<div class="name"/>').text(identifier));
+				if(termarray.length) { listitem.append($('<div class="terms"/>').text(termarray.join(', '))
+					.prepend($('<span/>').addClass('termlabel').text("Terms: ")));
+			}
+		}}, options);
+		var autoComplete = new jOWL.UI.Autocomplete(this, options);
+		autoComplete.setDocument(document);
+		return autoComplete;
 	}
 });

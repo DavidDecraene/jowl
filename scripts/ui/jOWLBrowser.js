@@ -153,7 +153,8 @@ function createConceptWidget(document){
 
 		widget.show = function(){
 			var concept = null;
-			if(configuration.owlClass){ concept = document.getResource(configuration.owlClass);}
+			if(configuration.owlClass){
+				concept = document.getResource(configuration.owlClass);}
 			else {
 				for(x in document.getIDIndex()){
 					var entry = document.getIDIndex()[x];

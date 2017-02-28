@@ -115,6 +115,7 @@ var root = tree.root("node");
 root.add("node2").add("child");
 */
 jOWL.UI.Tree = Class.extend({
+  include :  [EventListener],
   initialize : function(node, options){
     this.options = options;
     this.rack = $('<ul/>').addClass(options.treeClass).appendTo(node);
@@ -157,22 +158,26 @@ jOWL.UI.Tree = Class.extend({
     rt.wrapper.addClass("tv");
     rt.jnode.appendTo(this.rack);
     return rt;
-  }, propertyChange : function(item){
-    if(item instanceof jOWL.Type.Class) {
-      var m = new jOWL.UI.TreeModel(item, this);
-    }
   }, setModel : function(model){
     this.model = model;
   }, onSelect : function(entry, $element){
     if(!this.model || !entry) return;
     var resource = this.model.document.getResource(entry);
     if(!resource) return;
-    if(resource && this.options.onSelect.call($element, resource) === false) {
+    if(this.options.onSelect.call($element, resource) === false) {
       return;
     }
-    this.broadcast(resource);
+    this.setResource(resource);
+  }, setResource : function(resource){
+    this.fireEvent("Resource", resource);
+    //this.broadcast(resource);
     if(this.options.isStatic) {
-      this.propertyChange(resource);
+      this.onResource(resource);
+    }
+
+  }, onResource : function(item){
+    if(item instanceof jOWL.Type.Class) {
+      var m = new jOWL.UI.TreeModel(item, this);
     }
   }
 
@@ -233,7 +238,6 @@ Tree View
       this.content = $('<div/>').addClass(options.contentClass).appendTo(this);
     }
 		var tree = new jOWL.UI.Tree(this.content, options);
-		jOWL.UI.asBroadcaster(tree);
 		return tree;
 	}
 });

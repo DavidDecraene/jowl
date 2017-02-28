@@ -220,7 +220,8 @@ $.fn.extend({
   					if(actiontype.indexOf("sparql-dl:") === 0){
   						var query = actiontype.split("sparql-dl:", 2)[1];
   						var fill = {}; fill[self.resourcetype] = item;
-  						if(self.options[actiontype].prefill) { $.extend(fill, self.options[actiontype].prefill); }
+  						if(self.options[actiontype].prefill) {
+								$.extend(fill, self.options[actiontype].prefill); }
   						var qr = new jOWL.SPARQL_DL(document, query, fill).execute(
                 {onComplete : function(r){
   							if(self.options[actiontype].sort) {

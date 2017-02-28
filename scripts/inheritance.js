@@ -122,10 +122,19 @@ var Class = (function() {
 
 
 var EventListener = {
-addListener : function(el){
-  if(!el) return;
+addListener : function(){
+  if(!arguments.length) return;
   if(!this._listeners) this._listeners = [];
-  this._listeners.push(el);
+  for(var i=0;i<arguments.length;i++) this._listeners.push(arguments[i]);
+}, removeListener : function(){
+  if(!arguments.length) return;
+  if(!this._listeners) return;
+  for(var i=0;i<arguments.length;i++) {
+    var idx = this._listeners.indexOf(arguments[i]);
+    if(idx >= 0){
+      this._listeners.splice(idx, 1);
+    }
+  }
 }, fireEvent :  function(name){
   if(!this._listeners) return;
   var args = Array.prototype.slice.call(arguments, 1);
@@ -135,7 +144,7 @@ addListener : function(el){
     fn.apply(this._listeners[i], args);
   }
 }
-}
+};
 
 // Usage: Object.byString(someObj, 'part3[0].name', defaultValue);
 Object.byString = function(o, s, d) {
