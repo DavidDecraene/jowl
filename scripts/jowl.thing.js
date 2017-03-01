@@ -40,11 +40,7 @@ jOWL.Type.Thing = Class.extend({
 		return this.element.selectNodes(annotation);
 	},
 	/** @return rdfs:comment annotations */
-	description : function(description){
-		if(description){
-			//var ref = this.annotations(jOWL.NS.rdfs('comment'));
-
-		}
+	description : function(){
 		var result = this.annotations(jOWL.NS.rdfs('comment'));
 		return result.map(function(n){ return n.text(); });
 	},
@@ -72,6 +68,40 @@ jOWL.Type.Thing = Class.extend({
 			if(!match){ terms.push([txt, self.URI, locale, self.type]);}
 		});
 		return terms;
+	},
+	setDescription : function(description, locale){
+		var result = this.annotations(jOWL.NS.rdfs('comment'));
+		var node = null;
+		if(result.length){
+			if(result.length > 1){
+				//remove all other nodes
+				for(var i=1;i<result.length;i++){
+					result[i].remove();
+				}
+			}
+			node = result[0];
+		}
+		//create it
+		if(!node){
+			node = this.element.document.createXmlElement(jOWL.NS.rdfs, 'comment');
+			node.appendTo(this.element);
+		}
+		node.text(description);
+
+		if(locale){
+			node.attr(jOWL.NS.xml, "lang", locale);
+		}
+		return this;
+	},
+	addLabel : function(label, locale){
+		if(!label) throw new Error("label is unspecified");
+		var node = this.element.document.createXmlElement(jOWL.NS.rdfs, 'label');
+		node.appendTo(this.element);
+		node.text(label);
+		if(locale){
+			node.attr(jOWL.NS.xml, "lang", locale);
+		}
+		return node;
 	},
 	/** @return A representation name */
 	label : function(locale){

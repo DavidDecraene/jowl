@@ -5,11 +5,30 @@ jOWL.Element = Class.extend({
     //console.log(node instanceof Element);
 		this.document = document;
 		this._data = {};
+	}, appendTo : function(other){
+		other.node.appendChild(this.node);
+		return this;
+	}, remove : function(){
+		$(this.node).remove();
 	}, hasNamespace : function(ns){
 		return this.node.namespaceURI == ns;
-	}, text : function(){
+	}, addText : function(txt){
+		if(txt !== undefined){
+			var txtNode = this.document.document.createTextNode(txt);
+			this.node.appendChild(txtNode);
+		}
+		return this;
+
+	}, text : function(txt){
+		if(txt !== undefined){
+			$(this.node).text(txt);
+			return this;
+		}
     return  $(this.node).text();
-  }, attr : function(namespace, name, value){
+  }, removeAttr : function(namespace, name){
+		this.node.removeAttributeNS(namespace(), namespace(name));
+		return this;
+	}, attr : function(namespace, name, value){
     if(name === undefined) return $(this.node).attr(namespace);
 		if(value === undefined) return $(this.node).attr(namespace(name));
 		this.node.setAttributeNS(namespace(), namespace(name), value);

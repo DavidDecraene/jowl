@@ -18,7 +18,7 @@ function createSparqlDLWidget(document){
 
 				for(var i=0;i<obj.results.length;i++){
 					var txt = [];
-					for(x in obj.results[i]){
+					for(var x in obj.results[i]){
 							var str = (typeof obj.results[i][x] == 'string') ? obj.results[i][x] : obj.results[i][x].label();
 							txt.push(x+' : '+str);
 						}
@@ -122,7 +122,7 @@ function createConceptWidget(document){
 		jOWL.UI.asBroadcaster(widget);
 		widget.onResource =  widget.propertyChange = function(item){
 			widget.broadcast(item);
-		}
+		};
 
 		var jnode = $('#conceptwidget');
 
@@ -156,7 +156,7 @@ function createConceptWidget(document){
 			if(configuration.owlClass){
 				concept = document.getResource(configuration.owlClass);}
 			else {
-				for(x in document.getIDIndex()){
+				for(var x in document.getIDIndex()){
 					var entry = document.getIDIndex()[x];
 					if(entry instanceof jOWL.Type.Class){
 						concept = entry;
@@ -167,7 +167,7 @@ function createConceptWidget(document){
 			if(concept){
 				this.propertyChange(concept);
 			}
-		}
+		};
 
 		function toggleView(id){
 			switch (id)

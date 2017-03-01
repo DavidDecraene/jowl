@@ -108,174 +108,75 @@
     <script type="text/javascript" src="scripts/ui/autocomplete.component.js"></script>
     <script type="text/javascript" src="scripts/ui/treeview.component.js"></script>
     <script type="text/javascript" src="scripts/ui/propertylens.component.js"></script>
+    <script type="text/javascript" src="scripts/ui/editor.js"></script>
     <script type="text/javascript">
       DockArea.options.bootstrap = 4;
-        var doc = jOWL.create.document("http://test.com");
-        var owlDocument = jOWL.parse(doc);
-        console.log(owlDocument.toXML());
-        console.log(owlDocument.getOntology().description());
 
-        OntologyProvider = Class.singleton({
-          include :  [EventListener],
-          initialize : function(){
-          }, setOntology : function(ontology){
-            this.ontology = ontology;
-            this.fireEvent("Document", ontology);
-          }
 
-        }).getInstance();
-
+        var loadOptions = {reason : true, locale : 'en' };
+/*
         jOWL.load("data/wine.owl",
           function(owlDocument){
             OntologyProvider.setOntology(owlDocument);
 
-          }, {reason : true, locale : 'en' });
+          }, loadOptions);*/
 
-        TermEditor = Class.extend({
-          initialize : function(){
-            this.$element = $('<div class="editor"/>');
-            var row =   $('<div class="row"/>').appendTo(this.$element);
-            var col1 = $('<div class="col col-sm-3"/>').appendTo(row);
-            var col2 = $('<div class="col col-sm-9"/>').appendTo(row);
-            var group = $('<div class="input-group"/>').appendTo(col1);
-            $('<span class="input-group-addon">locale</span>').appendTo(group);
-            this.$locale = $('<input type="text" class="form-control">').appendTo(group);
-            group = $('<div class="input-group"/>').appendTo(col2);
-            $('<span class="input-group-addon">label</span>').appendTo(group);
-            this.$label = $('<input type="text" class="form-control">').appendTo(group);
-          }
-        });
+          function download(filename, text) {
+              var pom = document.createElement('a');
+              pom.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(text));
+              pom.setAttribute('download', filename);
 
-        DescriptionEditor = Class.extend({
-          initialize : function(){
-            this.$element = $('<div class="editor"/>');
-            $('<h4>Description</h4>').appendTo(this.$element);
-            this.$description = $('<textarea class="form-control">').appendTo(this.$element);
-
-          }
-        });
-
-
-        ConceptTreeEdit = Class.extend(DockPanel, {
-          initialize : function(){
-              this.parent();
-              this.$title.text("Class Tree View");
-
-          }, onDocument : function(document){
-            this.$body.empty();
-
-            var tree = $('<div/>').appendTo(this.$body).owl_treeview(document,
-              {addChildren: true, isStatic: true});
-            var div = $('<div class="input-group"/>')
-              .appendTo(this.$body);
-            var autocomplete = $('<input type="text" class="form-control" placeholder="Enter Search Terms here">')
-              .appendTo(div)
-              .owl_autocomplete(document, {focus : true, chars : 2, filter : 'Class'});
-            autocomplete.addListener(tree);
-            var self = this;
-            tree.addListener({
-              onResource : function(item){
-                self.fireEvent("Resource", item);
+              if (document.createEvent) {
+                  var event = document.createEvent('MouseEvents');
+                  event.initEvent('click', true, true);
+                  pom.dispatchEvent(event);
               }
-            });
-            for(x in document.getIDIndex()){
-    					var entry = document.getIDIndex()[x];
-    					if(entry instanceof jOWL.Type.Class){
-    						concept = entry;
-                tree.setResource(concept);
-    						break;
-    					}
-    				}
-          }, initProvider : function(){
-            OntologyProvider.addListener(this);
-            if(OntologyProvider.ontology) this.onDocument(OntologyProvider.ontology);
-          }
-        });
-
-        ClassDescriptionEdit = Class.extend(DockPanel, {
-          initialize : function(){
-              this.parent();
-              this.$title.text("Class Info View");
-              //if(OntologyProvider.ontology) this.onDocument(OntologyProvider.ontology);
-          }, onResource : function(owlClass){
-            if(!(owlClass instanceof jOWL.Type.Class)) return;
-            this.$body.empty();
-            this.$title.text(owlClass.URI);
-            var descriptionEditor = new DescriptionEditor();
-            descriptionEditor.$description.val(owlClass.description());
-            descriptionEditor.$element.appendTo(this.$body);
-            var terms = owlClass.terms();
-            var self = this;
-            var $edit = $('<div class="editor"/>').appendTo(self.$body);
-            $('<h4 >Terms</h4>').appendTo($edit);
-            if(terms && terms.length){
-              terms.forEach(function(v){
-                var termEditor = new TermEditor();
-                termEditor.$element.appendTo($edit);
-                termEditor.$locale.val(v[2]);
-                termEditor.$label.val(v[0]);
-              });
-            }
-            //TODO: get disjoints...
-            //TODO: get instances...
-            $edit = $('<div class="editor"/>').appendTo(self.$body);
-            $('<h4>Relations</h4>').appendTo($edit);
-            new jOWL.SPARQL_DL(owlClass.element.document,
-              "sparql-dl:PropertyValue(item, ?p, ?t)", {
-                item : owlClass
-            }).execute({
-              onComplete : function(r){
-                if(!r.results) return;
-                r.results.forEach(function(entry){
-                  var property = entry['?p'];
-                  var target = entry['?t'];
-                  var $div = $('<div/>').appendTo($edit);
-                  if(property) property.bind($('<span/>').appendTo($div));
-
-                  if(target){
-                    if(property) $('<span>: </span>').appendTo($div);
-                    target.bind($('<span/>').appendTo($div));
-                  }
-                });
+              else {
+                  pom.click();
               }
-            });
           }
-        });
-
-        OntologyEdit = Class.extend(DockPanel, {
-          initialize : function(){
-              this.parent();
-              this.$description = $('<div/>').appendTo(this.$body);
-              OntologyProvider.addListener(this);
-              if(OntologyProvider.ontology) this.onDocument(OntologyProvider.ontology);
-          }, onResource : function(ontology){
-            if(!(ontology instanceof jOWL.Type.Ontology)) return;
-            this.$body.empty();
-            this.$title.text(ontology.baseURI);
-            var descriptionEditor = new DescriptionEditor();
-            descriptionEditor.$description.val(ontology.description());
-            descriptionEditor.$element.appendTo(this.$body);
-            var terms = ontology.terms();
-            var self = this;
-            $('<h4>Terms</h4>').appendTo(this.$body);
-            if(terms && terms.length){
-              terms.forEach(function(v){
-                var termEditor = new TermEditor();
-                termEditor.$element.appendTo(self.$body);
-                termEditor.$locale.val(v[2]);
-                termEditor.$label.val(v[0]);
-              });
-            }
-          }, onDocument : function(document){
-            this.onResource(document.getOntology());
-          }, remove : function(){
-            this.parent();
-            OntologyProvider.removeListener(this);
-          }
-
-        });
 
         $(document).ready(function() {
+
+          $('#NewFileButton').click(function(e){
+            var namespace = $('#namespace-field').val();
+            if(!namespace || !namespace.length){
+              e.preventDefault();
+              return false;
+            }
+            var doc = jOWL.create.document(namespace);
+            var owlDocument = jOWL.parse(doc);
+
+            var name = $('#name-field').val();
+            if(name && name.length){
+              console.log( owlDocument.getOntology());
+                //Add a label using the default locale...
+              owlDocument.getOntology().addLabel(name,  loadOptions.locale);
+            }
+            OntologyProvider.setOntology(owlDocument);
+          });
+
+          $('#LoadFileButton').click(function(){
+              var file =  $('#file-input').get(0).files[0];
+              if(!file) return false;
+              var reader = new FileReader();
+              reader.onload = function(e) {
+                var contents = e.target.result;
+                //console.log(contents, e);
+                var owlDocument = jOWL.parse(contents, loadOptions);
+                OntologyProvider.setOntology(owlDocument);
+              };
+              reader.readAsText(file);
+          });
+
+          $('#SaveFileButton').click(function(){
+            if(!OntologyProvider.ontology) return false;
+            var txt = OntologyProvider.ontology.toXML();
+            var name = $('#file-output').val();
+            if(!name || !name.length) name = "ontology";
+            download(name+".owl", txt);
+          });
+
             var area = new DockArea($('#dockArea'));
             var $column = $('.dock-col', area.$element);
 
@@ -290,6 +191,7 @@
             treeEdit.addListener(classEdit);
             tabs.addPanel(treeEdit)
             tabs.addPanel(classEdit);
+            tabs.addPanel(new SparqlWidget());
             treeEdit.initProvider();
 
             tabs = new TabDockPanel();
@@ -309,6 +211,11 @@
                 return new OntologyEdit();
               }
             });
+            new DockPanelCreator($('#sparql-dl'), {
+              create : function(){
+                return new SparqlWidget();
+              }
+            });
 
         });
     </script>
@@ -323,8 +230,13 @@
 
         <div class="collapse navbar-collapse" id="navbarsExampleDefault">
             <ul class="navbar-nav mr-auto">
-                <li class="nav-item active">
-                    <a class="nav-link" href="#">Home <span class="sr-only">(current)</span></a>
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" data-toggle="dropdown" href="#">File <span class="sr-only">(current)</span></a>
+                    <div class="dropdown-menu" aria-labelledby="navbarDropdownMenuLink">
+                      <a class="dropdown-item" href="#New"  data-toggle="modal" data-target="#NewFile">New</a>
+                      <a class="dropdown-item" href="#Load" data-toggle="modal" data-target="#LoadFile">Load</a>
+                      <a class="dropdown-item" href="#Save" data-toggle="modal" data-target="#SaveFile">Save</a>
+                    </div>
                 </li>
                 <li class="nav-item">
                     <a class="nav-link" href="#">Settings</a>
@@ -347,8 +259,10 @@
                         <a class="nav-link" id="ClassTree" href="#ClassTree"><i class="fa fa-puzzle-piece" aria-hidden="true"></i> owl:Class TreeView</a>
                     </li>
                     <li class="nav-item">
-
                         <a class="nav-link" id="ontoEdit" href="#ontoEdit"><i class="fa fa-puzzle-piece" aria-hidden="true"></i> owl:Ontology View</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" id="sparql-dl" href="#sparql-dl"><i class="fa fa-puzzle-piece" aria-hidden="true"></i> Sparql-DL widget</a>
                     </li>
                 </ul>
             </nav>
@@ -362,7 +276,80 @@
             </main>
         </div>
     </div>
+    <div id="Modals">
+      <!-- Modal -->
+      <div class="modal fade" id="LoadFile" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title" id="exampleModalLabel">Load Owl File</h5>
+              <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+              </button>
+            </div>
+            <div class="modal-body">
+              <input type="file" id="file-input" class="form-control"/>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+              <button type="button"  data-dismiss="modal" id="LoadFileButton" class="btn btn-primary">Load</button>
+            </div>
+          </div>
+        </div>
+      </div>
+        <!-- Modal -->
+        <div class="modal fade" id="SaveFile" tabindex="-1"
+        role="dialog" aria-hidden="true">
+          <div class="modal-dialog" role="document">
+            <div class="modal-content">
+              <div class="modal-header">
+                <h5 class="modal-title" id="exampleModalLabel">Save to Owl File</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                  <span aria-hidden="true">&times;</span>
+                </button>
+              </div>
+              <div class="modal-body">
+                <input type="text" id="file-output"  class="form-control" placeholder="file name"/>
+              </div>
+              <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                <button type="button"  data-dismiss="modal" id="SaveFileButton" class="btn btn-primary">Save</button>
+              </div>
+            </div>
+          </div>
+        </div>
 
+          <!-- Modal -->
+          <div class="modal fade" id="NewFile" tabindex="-1"
+          role="dialog" aria-hidden="true">
+            <div class="modal-dialog" role="document">
+              <div class="modal-content">
+                <div class="modal-header">
+                  <h5 class="modal-title" id="exampleModalLabel">Create new Owl File</h5>
+                  <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                  </button>
+                </div>
+                <div class="modal-body">
+                  <div class="input-group">
+                    <span class="input-group-addon">URI</span>
+                    <input type="text" id="namespace-field"  class="form-control" placeholder="Base URL of the ontology (required)"/>
+                  </div>
+                  <br/>
+                  <div class="input-group">
+                    <span class="input-group-addon">Name</span>
+                    <input type="text" id="name-field"  class="form-control" placeholder="Ontology name (optional)"/>
+                  </div>
+                </div>
+                <div class="modal-footer">
+                  <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                  <button type="button"  data-dismiss="modal"  id="NewFileButton" class="btn btn-primary">Create</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+    </div>
 
 </body>
 

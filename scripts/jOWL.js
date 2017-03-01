@@ -59,6 +59,7 @@ jOWL.NS("owl", "http://www.w3.org/2002/07/owl#");
 jOWL.NS("rdf", "http://www.w3.org/1999/02/22-rdf-syntax-ns#");
 jOWL.NS("rdfs", "http://www.w3.org/2000/01/rdf-schema#");
 jOWL.NS("xsd", "http://www.w3.org/2001/XMLSchema#");
+jOWL.NS("xml", "http://www.w3.org/XML/1998/namespace");
 
 /** jQuery function additions for easy parsing of identities */
 $.fn.extend({
@@ -344,7 +345,8 @@ jOWL.parse = function(doc, options){
 	document.resetIndices();
 	document.getIDIndex();
 
-	var xml = document.createXmlElement(jOWL.NS.owl, "Class").attr(jOWL.NS.rdf, 'about', jOWL.NS.owl()+'Thing');
+	var xml = document.createXmlElement(jOWL.NS.owl, "Class")
+		.attr(jOWL.NS.rdf, 'about', jOWL.NS.owl()+'Thing');
 	jOWL.Thing = new jOWL.Type.Thing(xml);
 	jOWL.Thing.type = false;
 	return document;

@@ -74,8 +74,16 @@ jOWL.Document = Class.extend({
     } else if(jowl instanceof jOWL.Type.Property) {
       this._indexProperty(jowl);
     }
-    this.indices.D = this.indices.D.concat(jowl.terms());
-  }, getIDIndex : function(){
+		this.indices.D = this.indices.D.concat(jowl.terms());
+
+  }, _updateTerms : function(resource){
+		this.indices.D = this.indices.D.filter(function(item){
+			return item[1] !== resource.URI;
+		}).concat(resource.terms());
+
+		//clear stored terms, restore terms..
+		//this.indices.D = this.indices.D.concat(terms);
+	}, getIDIndex : function(){
     if(this.indices.IDs) return this.indices.IDs;
     var start = new Date();
     this.indices.IDs = {};
